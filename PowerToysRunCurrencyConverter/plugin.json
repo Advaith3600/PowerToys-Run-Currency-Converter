@@ -1,0 +1,14 @@
+{
+  "ID": "EF1F634F20484459A3679B4DE7B07999",
+  "Disabled": false,
+  "ActionKeyword": "sample",
+  "Name": "Currency Converter",
+  "Author": "advaith3600",
+  "Version": "1.0.0",
+  "Language": "csharp",
+  "Website": "https://github.com/advaith3600/powertoys-run-currency-converter",
+  "ExecuteFileName": "PowerToysRunCurrencyConverter.dll",
+  "IsGlobal": false,
+  "IcoPathDark": "images\\icon.png",
+  "IcoPathLight": "images\\icon.png"
+}
