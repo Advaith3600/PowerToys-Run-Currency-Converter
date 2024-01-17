@@ -1,5 +1,8 @@
-﻿using ManagedCommon;
+﻿using System.Net.Http;
+using System.Text.Json;
+using ManagedCommon;
 using Wox.Plugin;
+
 
 namespace PowerToysRunCurrencyConverter
 {
@@ -13,19 +16,96 @@ namespace PowerToysRunCurrencyConverter
 
         public string Description => "This plugins converts currency";
 
-        public List<Result> Query(Query query)
+        private Dictionary<string, (double, DateTime)> cache = new Dictionary<string, (double, DateTime)>();
+
+        private List<Result> InvalidFormat()
         {
             return new List<Result>
             {
                 new Result
                 {
-                    Title = "Copy COOL",
+                    Title = "Invalid Format",
+                    SubTitle = "$$ 100 inr to usd - please use this format",
                     IcoPath = IconPath,
-                    Action = e =>
-                    {
-                        return true;
-                    },
+
                 },
+            };
+        }
+
+        private double? GetConversionRate(string fromCurrency, string toCurrency)
+        {
+            string key = $"{fromCurrency}-{toCurrency}";
+            if (cache.ContainsKey(key) && cache[key].Item2 > DateTime.Now.AddHours(-1)) // cache for 1 hour
+            {
+                return cache[key].Item1;
+            }
+            else
+            {
+                string url = $"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/{fromCurrency}/{toCurrency}.json";
+                try
+                {
+                    HttpClient client = new HttpClient();
+                    var response = client.GetStringAsync(url).Result;
+                    JsonDocument document = JsonDocument.Parse(response);
+                    JsonElement root = document.RootElement;
+                    double conversionRate = root.GetProperty(toCurrency).GetDouble();
+                    cache[key] = (conversionRate, DateTime.Now);
+                    return conversionRate;
+                }
+                catch (Exception ex)
+                {
+                    return null;
+                }
+            }
+        }
+
+        public List<Result> Query(Query query)
+        {
+            var strs = query.RawQuery.Split("$$");
+            if (strs.Length != 2)
+            {
+                return InvalidFormat();
+            }
+
+            var parts = strs[1].Trim().Split(" ");
+            if (parts.Length != 4)
+            {
+                return InvalidFormat();
+            }
+
+            double amountToConvert;
+            if (!double.TryParse(parts[0], out amountToConvert))
+            {
+                return InvalidFormat();
+            }
+
+            string fromCurrency = parts[1];
+            string toCurrency = parts[3];
+
+            double? conversionRate = GetConversionRate(fromCurrency, toCurrency);
+
+            if (conversionRate == null)
+            {
+                return new List<Result>
+                {
+                    new Result
+                    {
+                        Title = "Something went wrong.",
+                        IcoPath = IconPath,
+                    }
+                };
+            }
+
+            double convertedAmount = Math.Round(amountToConvert * (double) conversionRate, 2);
+
+            return new List<Result>
+            {
+                new Result
+                {
+                    Title = $"{convertedAmount} {toCurrency}",
+                    SubTitle = $"Currency conversion from {fromCurrency} to {toCurrency}",
+                    IcoPath = IconPath,
+                }
             };
         }
 
@@ -38,7 +118,14 @@ namespace PowerToysRunCurrencyConverter
 
         private void UpdateIconPath(Theme theme)
         {
-            IconPath = "images/icon.png";
+            if (theme == Theme.Light || theme == Theme.HighContrastWhite)
+            {
+                IconPath = "images/icon-black.png";
+            }
+            else
+            {
+                IconPath = "images/icon-white.png";
+            }
         }
 
         private void OnThemeChanged(Theme currentTheme, Theme newTheme)

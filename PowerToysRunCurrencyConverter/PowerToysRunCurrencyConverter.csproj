@@ -24,9 +24,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="images\icon.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <None Update="images\icon-black.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="images\icon-white.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
     <None Update="plugin.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
