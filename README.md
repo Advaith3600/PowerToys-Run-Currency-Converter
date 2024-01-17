@@ -2,7 +2,7 @@
 
 This is a plugin developed for PowerToys Run to convert currencies
 
-![Screenshot](screenshot.png)
+![Screenshot](Screenshot.png)
 
 ## Usage
 
