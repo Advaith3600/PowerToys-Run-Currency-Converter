@@ -1,12 +1,15 @@
-﻿using System.Net.Http;
+﻿using System.Globalization;
+using System.Net.Http;
 using System.Text.Json;
+using System.Windows;
 using ManagedCommon;
 using Wox.Plugin;
+using Microsoft.PowerToys.Settings.UI.Library;
 
 
 namespace PowerToysRunCurrencyConverter
 {
-    public class Main : IPlugin
+    public class Main : IPlugin, ISettingProvider
     {
         public static string PluginID => "EF1F634F20484459A3679B4DE7B07999";
 
@@ -14,42 +17,78 @@ namespace PowerToysRunCurrencyConverter
         private PluginInitContext Context { get; set; }
         public string Name => "Currency Converter";
 
-        public string Description => "This plugins converts currency";
+        public string Description => "Currency Converter Plugin";
 
-        private Dictionary<string, (double, DateTime)> cache = new Dictionary<string, (double, DateTime)>();
+        private Dictionary<string, (double, DateTime)> ConversionCache = new Dictionary<string, (double, DateTime)>();
+        private readonly HttpClient Client = new HttpClient();
+        private readonly RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.LCID);
 
-        private List<Result> InvalidFormat()
+        private int ConversionDirection;
+        private string LocalCurrency, GlobalCurrency;
+
+        public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>()
         {
-            return new List<Result>
+            new PluginAdditionalOption()
             {
-                new Result
+                Key = "QuickConversionDirection",
+                DisplayLabel = "Quick Convertion Direction",
+                DisplayDescription = "Set in which direction you want to convert.",
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
+                ComboBoxItems = new List<KeyValuePair<string, string>>
                 {
-                    Title = "Invalid Format",
-                    SubTitle = "$$ 100 inr to usd - please use this format",
-                    IcoPath = IconPath,
-
+                    new KeyValuePair<string, string>("From local to global", "0"),
+                    new KeyValuePair<string, string>("From global to local", "1"),
                 },
-            };
+                ComboBoxValue = ConversionDirection,
+            },
+            new PluginAdditionalOption()
+            {
+                Key = "QuickConversionLocalCurrency",
+                DisplayLabel = "Quick Convertion Local Currency",
+                DisplayDescription = "Set your local currency.",
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
+                TextValue = regionInfo.ISOCurrencySymbol,
+            },
+            new PluginAdditionalOption()
+            {
+                Key = "QuickConversionGlobalCurrency",
+                DisplayLabel = "Quick Convertion Global Currency",
+                DisplayDescription = "Set your global currency.",
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
+                TextValue = "USD",
+            },
+        };
+
+        public void UpdateSettings(PowerLauncherPluginSettings settings)
+        {
+            if (settings != null && settings.AdditionalOptions != null)
+            {
+                ConversionDirection = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionDirection")?.ComboBoxValue ?? 0;
+                string _LocalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency").TextValue;
+                LocalCurrency = _LocalCurrency == "" ? regionInfo.ISOCurrencySymbol : _LocalCurrency;
+
+                string _GlobalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionGlobalCurrency").TextValue;
+                GlobalCurrency = _GlobalCurrency == "" ? "USD" : _GlobalCurrency;
+            }
         }
 
         private double? GetConversionRate(string fromCurrency, string toCurrency)
         {
             string key = $"{fromCurrency}-{toCurrency}";
-            if (cache.ContainsKey(key) && cache[key].Item2 > DateTime.Now.AddHours(-1)) // cache for 1 hour
+            if (ConversionCache.ContainsKey(key) && ConversionCache[key].Item2 > DateTime.Now.AddHours(-1)) // cache for 1 hour
             {
-                return cache[key].Item1;
+                return ConversionCache[key].Item1;
             }
             else
             {
                 string url = $"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/{fromCurrency}/{toCurrency}.json";
                 try
                 {
-                    HttpClient client = new HttpClient();
-                    var response = client.GetStringAsync(url).Result;
+                    var response = Client.GetStringAsync(url).Result;
                     JsonDocument document = JsonDocument.Parse(response);
                     JsonElement root = document.RootElement;
                     double conversionRate = root.GetProperty(toCurrency).GetDouble();
-                    cache[key] = (conversionRate, DateTime.Now);
+                    ConversionCache[key] = (conversionRate, DateTime.Now);
                     return conversionRate;
                 }
                 catch (Exception ex)
@@ -61,26 +100,25 @@ namespace PowerToysRunCurrencyConverter
 
         public List<Result> Query(Query query)
         {
-            var strs = query.RawQuery.Split("$$");
-            if (strs.Length != 2)
+            double amountToConvert = 0;
+            var parts = query.Search.Trim().Split(" ");
+            if (! ((parts.Length == 1 || parts.Length == 4) && double.TryParse(parts[0], out amountToConvert)))
             {
-                return InvalidFormat();
+                return new List<Result>();
             }
 
-            var parts = strs[1].Trim().Split(" ");
-            if (parts.Length != 4)
-            {
-                return InvalidFormat();
-            }
+            string fromCurrency, toCurrency;
 
-            double amountToConvert;
-            if (!double.TryParse(parts[0], out amountToConvert))
+            if (parts.Length == 1)
             {
-                return InvalidFormat();
+                fromCurrency = (ConversionDirection == 0 ? LocalCurrency : GlobalCurrency).ToLower();
+                toCurrency = (ConversionDirection == 0 ? GlobalCurrency : LocalCurrency).ToLower();
             }
-
-            string fromCurrency = parts[1];
-            string toCurrency = parts[3];
+            else
+            {
+                fromCurrency = parts[1].ToLower();
+                toCurrency = parts[3].ToLower();
+            }
 
             double? conversionRate = GetConversionRate(fromCurrency, toCurrency);
 
@@ -91,6 +129,7 @@ namespace PowerToysRunCurrencyConverter
                     new Result
                     {
                         Title = "Something went wrong.",
+                        SubTitle = "Please try again.",
                         IcoPath = IconPath,
                     }
                 };
@@ -102,9 +141,14 @@ namespace PowerToysRunCurrencyConverter
             {
                 new Result
                 {
-                    Title = $"{convertedAmount} {toCurrency}",
-                    SubTitle = $"Currency conversion from {fromCurrency} to {toCurrency}",
+                    Title = $"{convertedAmount} {toCurrency.ToUpper()}",
+                    SubTitle = $"Currency conversion from {fromCurrency.ToUpper()} to {toCurrency.ToUpper()}",
                     IcoPath = IconPath,
+                    Action = e =>
+                    {
+                        Clipboard.SetText(convertedAmount.ToString());
+                        return true;
+                    }
                 }
             };
         }
@@ -131,6 +175,11 @@ namespace PowerToysRunCurrencyConverter
         private void OnThemeChanged(Theme currentTheme, Theme newTheme)
         {
             UpdateIconPath(newTheme);
+        }
+
+        public System.Windows.Controls.Control CreateSettingPanel()
+        {
+            throw new NotImplementedException();
         }
     }
 }
