@@ -99,6 +99,38 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
         }
 
+        private Result GetConversion(double amountToConvert, string fromCurrency, string toCurrency)
+        {
+            double? conversionRate = GetConversionRate(fromCurrency.ToLower(), toCurrency.ToLower());
+            fromCurrency = fromCurrency.ToUpper();
+            toCurrency = toCurrency.ToUpper();
+
+            if (conversionRate == null)
+            {
+                return new Result
+                {
+                    Title = $"Something went wrong while converting from {fromCurrency} to {toCurrency}",
+                    SubTitle = "Please try again. Check your internet and the plugin settings if this persists.",
+                    IcoPath = IconPath,
+                };
+            }
+
+            double convertedAmount = Math.Round(amountToConvert * (double) conversionRate, 2);
+            string formatted = convertedAmount.ToString("N", CultureInfo.CurrentCulture);
+
+            return new Result
+            {
+                Title = $"{formatted} {toCurrency}",
+                SubTitle = $"Currency conversion from {fromCurrency} to {toCurrency}",
+                IcoPath = IconPath,
+                Action = e =>
+                {
+                    Clipboard.SetText(convertedAmount.ToString());
+                    return true;
+                }
+            };
+        }
+
         public List<Result> Query(Query query)
         {
             double amountToConvert = 0;
@@ -108,49 +140,21 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 return new List<Result>();
             }
 
-            string fromCurrency, toCurrency;
-
             if (parts.Length == 1)
             {
-                fromCurrency = (ConversionDirection == 0 ? LocalCurrency : GlobalCurrency).ToLower();
-                toCurrency = (ConversionDirection == 0 ? GlobalCurrency : LocalCurrency).ToLower();
-            }
-            else
-            {
-                fromCurrency = parts[1].ToLower();
-                toCurrency = parts[3].ToLower();
-            }
+                string fromCurrency = ConversionDirection == 0 ? LocalCurrency : GlobalCurrency;
+                string toCurrency = ConversionDirection == 0 ? GlobalCurrency : LocalCurrency;
 
-            double? conversionRate = GetConversionRate(fromCurrency, toCurrency);
-
-            if (conversionRate == null)
-            {
                 return new List<Result>
                 {
-                    new Result
-                    {
-                        Title = "Something went wrong.",
-                        SubTitle = "Please try again.",
-                        IcoPath = IconPath,
-                    }
+                    GetConversion(amountToConvert, fromCurrency, toCurrency),
+                    GetConversion(amountToConvert, toCurrency, fromCurrency)
                 };
             }
 
-            double convertedAmount = Math.Round(amountToConvert * (double) conversionRate, 2);
-
             return new List<Result>
             {
-                new Result
-                {
-                    Title = $"{convertedAmount} {toCurrency.ToUpper()}",
-                    SubTitle = $"Currency conversion from {fromCurrency.ToUpper()} to {toCurrency.ToUpper()}",
-                    IcoPath = IconPath,
-                    Action = e =>
-                    {
-                        Clipboard.SetText(convertedAmount.ToString());
-                        return true;
-                    }
-                }
+                GetConversion(amountToConvert, parts[1], parts[3])
             };
         }
 
