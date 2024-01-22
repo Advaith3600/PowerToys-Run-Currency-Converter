@@ -4,10 +4,10 @@
   "ActionKeyword": "$$",
   "Name": "Currency Converter",
   "Author": "advaith3600",
-  "Version": "1.0.1",
+  "Version": "1.0.2",
   "Language": "csharp",
-  "Website": "https://github.com/advaith3600/powertoys-run-currency-converter",
-  "ExecuteFileName": "PowerToysRunCurrencyConverter.dll",
+  "Website": "https://github.com/advaith3600/PowerToys-Run-Currency-Converter",
+  "ExecuteFileName": "Community.PowerToys.Run.Plugin.CurrencyConverter.dll",
   "IsGlobal": false,
   "IcoPathDark": "images\\icon-white.png",
   "IcoPathLight": "images\\icon-black.png"

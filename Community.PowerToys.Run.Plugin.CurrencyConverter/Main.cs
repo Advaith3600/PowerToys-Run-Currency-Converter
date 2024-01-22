@@ -6,8 +6,9 @@ using ManagedCommon;
 using Wox.Plugin;
 using Microsoft.PowerToys.Settings.UI.Library;
 
+using Clipboard = System.Windows.Clipboard;
 
-namespace PowerToysRunCurrencyConverter
+namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {
     public class Main : IPlugin, ISettingProvider
     {
@@ -21,7 +22,7 @@ namespace PowerToysRunCurrencyConverter
 
         private Dictionary<string, (double, DateTime)> ConversionCache = new Dictionary<string, (double, DateTime)>();
         private readonly HttpClient Client = new HttpClient();
-        private readonly RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.LCID);
+        private readonly RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
 
         private int ConversionDirection;
         private string LocalCurrency, GlobalCurrency;
