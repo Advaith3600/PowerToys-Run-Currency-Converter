@@ -135,7 +135,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         {
             double amountToConvert = 0;
             var parts = query.Search.Trim().Split(" ");
-            if (! ((parts.Length == 1 || parts.Length == 4) && double.TryParse(parts[0], out amountToConvert)))
+            if (! ((parts.Length == 1 || parts.Length == 2 || parts.Length == 4) && double.TryParse(parts[0], out amountToConvert)))
             {
                 return new List<Result>();
             }
@@ -149,6 +149,14 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 {
                     GetConversion(amountToConvert, fromCurrency, toCurrency),
                     GetConversion(amountToConvert, toCurrency, fromCurrency)
+                };
+            } 
+            else if (parts.Length == 2)
+            {
+                return new List<Result>
+                {
+                    GetConversion(amountToConvert, parts[1], ConversionDirection == 0 ? GlobalCurrency : LocalCurrency),
+                    GetConversion(amountToConvert, parts[1], ConversionDirection == 0 ? LocalCurrency : GlobalCurrency)
                 };
             }
 

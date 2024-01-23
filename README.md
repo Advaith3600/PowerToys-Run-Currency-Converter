@@ -30,7 +30,7 @@ Example Usage:
 $$ 1 btc to usd
 ```
 
-![Screenshot](screenshots/screenshot2.png)
+![Screenshot](screenshots/screenshot5.png)
 
 ### Quick Conversions
 
@@ -42,6 +42,14 @@ $$ 102.2
 
 ![Screenshot](screenshots/screenshot3.png)
 
+Or, you can convert any currency to your local and globally by:
+
+```
+$$ 1 eur
+```
+
+![Screenshot](screenshots/screenshot4.png)
+
 Your local currency, global currency and the quick conversion direction can also be changed from the settings page in PowerToys Run under this plugin. 
 
 ## Installation
@@ -50,6 +58,6 @@ Your local currency, global currency and the quick conversion direction can also
 2. Extract the zip file's contents to your PowerToys modules directory (usually `%LOCALAPPDATA%\Microsoft\PowerToys\PowerToys Run\Plugins`).
 3. Restart PowerToys.
 
-## Conversion API 
+## Conversion API
 
 This plugin internally uses [Currency API](https://github.com/fawazahmed0/currency-api) for the latest conversion rates. 

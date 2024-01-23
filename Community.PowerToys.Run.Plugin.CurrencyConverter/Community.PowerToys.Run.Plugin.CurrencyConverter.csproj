@@ -8,7 +8,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>Community.PowerToys.Run.Plugin.CurrencyConverter</RootNamespace>
     <AssemblyName>Community.PowerToys.Run.Plugin.CurrencyConverter</AssemblyName>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <Platforms>AnyCPU;x64;ARM64</Platforms>
