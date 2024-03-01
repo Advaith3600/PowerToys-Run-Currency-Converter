@@ -1,10 +1,10 @@
 ﻿using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;
-using System.Windows;
 using ManagedCommon;
 using Wox.Plugin;
 using Microsoft.PowerToys.Settings.UI.Library;
+using System.Text.RegularExpressions;
 
 using Clipboard = System.Windows.Clipboard;
 
@@ -134,16 +134,30 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         public List<Result> Query(Query query)
         {
             double amountToConvert = 0;
-            var parts = query.Search.Trim().Split(" ");
-            if (! ((parts.Length == 1 || parts.Length == 2 || parts.Length == 4) && double.TryParse(parts[0], out amountToConvert)))
+            string fromCurrency = "";
+            string toCurrency = "";
+
+            var match = Regex.Match(query.Search.Trim(), @"([0-9.,]+) ?(\w*) ?(to)? ?(\w*)");
+
+            if (! match.Success)
             {
                 return new List<Result>();
             }
 
-            if (parts.Length == 1)
+            if (double.TryParse(match.Groups[1].Value, out amountToConvert))
             {
-                string fromCurrency = ConversionDirection == 0 ? LocalCurrency : GlobalCurrency;
-                string toCurrency = ConversionDirection == 0 ? GlobalCurrency : LocalCurrency;
+                fromCurrency = match.Groups[2].Value;
+
+                if (!string.IsNullOrEmpty(match.Groups[3].Value) && match.Groups[3].Value.ToLower() == "to")
+                {
+                    toCurrency = match.Groups[4].Value;
+                }
+            }
+
+            if (String.IsNullOrEmpty(fromCurrency)) 
+            {
+                fromCurrency = ConversionDirection == 0 ? LocalCurrency : GlobalCurrency;
+                toCurrency = ConversionDirection == 0 ? GlobalCurrency : LocalCurrency;
 
                 return new List<Result>
                 {
@@ -151,18 +165,18 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     GetConversion(amountToConvert, toCurrency, fromCurrency)
                 };
             } 
-            else if (parts.Length == 2)
+            else if (String.IsNullOrEmpty(toCurrency))
             {
                 return new List<Result>
                 {
-                    GetConversion(amountToConvert, parts[1], ConversionDirection == 0 ? GlobalCurrency : LocalCurrency),
-                    GetConversion(amountToConvert, parts[1], ConversionDirection == 0 ? LocalCurrency : GlobalCurrency)
+                    GetConversion(amountToConvert, fromCurrency, ConversionDirection == 0 ? GlobalCurrency : LocalCurrency),
+                    GetConversion(amountToConvert, fromCurrency, ConversionDirection == 0 ? LocalCurrency : GlobalCurrency)
                 };
             }
 
             return new List<Result>
             {
-                GetConversion(amountToConvert, parts[1], parts[3])
+                GetConversion(amountToConvert, fromCurrency, toCurrency)
             };
         }
 

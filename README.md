@@ -18,7 +18,7 @@ You can change the `$$` prefix from the settings page. To use this plugin withou
 1 eur to usd
 ```
 
-![Screenshot](screenshots/screenshot4.png)
+![Screenshot](screenshots/screenshot5.png)
 
 ### Crypto and other currencies
 
@@ -30,7 +30,7 @@ Example Usage:
 $$ 1 btc to usd
 ```
 
-![Screenshot](screenshots/screenshot5.png)
+![Screenshot](screenshots/screenshot2.png)
 
 ### Quick Conversions
 
@@ -42,7 +42,7 @@ $$ 102.2
 
 ![Screenshot](screenshots/screenshot3.png)
 
-Or, you can convert any currency to your local and globally by:
+Or, you can convert any currency to your local and global by:
 
 ```
 $$ 1 eur
