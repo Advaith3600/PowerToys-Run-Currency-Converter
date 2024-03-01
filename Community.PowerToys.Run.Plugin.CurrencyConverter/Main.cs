@@ -1,10 +1,12 @@
-﻿using System.Globalization;
+﻿using System.Net;
 using System.Net.Http;
 using System.Text.Json;
-using ManagedCommon;
-using Wox.Plugin;
-using Microsoft.PowerToys.Settings.UI.Library;
+using System.Globalization;
 using System.Text.RegularExpressions;
+
+using Wox.Plugin;
+using ManagedCommon;
+using Microsoft.PowerToys.Settings.UI.Library;
 
 using Clipboard = System.Windows.Clipboard;
 
@@ -20,7 +22,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public string Description => "Currency Converter Plugin";
 
-        private Dictionary<string, (double, DateTime)> ConversionCache = new Dictionary<string, (double, DateTime)>();
+        private Dictionary<string, (JsonElement, DateTime)> ConversionCache = new Dictionary<string, (JsonElement, DateTime)>();
         private readonly HttpClient Client = new HttpClient();
         private readonly RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
 
@@ -73,55 +75,80 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
         }
 
-        private double? GetConversionRate(string fromCurrency, string toCurrency)
+        private double GetConversionRate(string fromCurrency, string toCurrency)
         {
-            string key = $"{fromCurrency}-{toCurrency}";
-            if (ConversionCache.ContainsKey(key) && ConversionCache[key].Item2 > DateTime.Now.AddHours(-1)) // cache for 1 hour
+            if (ConversionCache.ContainsKey(fromCurrency) && ConversionCache[fromCurrency].Item2 > DateTime.Now.AddHours(-1)) // cache for 1 hour
             {
-                return ConversionCache[key].Item1;
+                try
+                {
+                    return ConversionCache[fromCurrency].Item1.GetProperty(toCurrency).GetDouble();
+                }
+                catch (KeyNotFoundException)
+                {
+                    throw new Exception($"{toCurrency.ToUpper()} is not a valid currency");
+                }
             }
             else
             {
-                string url = $"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/{fromCurrency}/{toCurrency}.json";
+                string url = $"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{fromCurrency}.min.json";
                 try
                 {
-                    var response = Client.GetStringAsync(url).Result;
-                    JsonDocument document = JsonDocument.Parse(response);
-                    JsonElement root = document.RootElement;
-                    double conversionRate = root.GetProperty(toCurrency).GetDouble();
-                    ConversionCache[key] = (conversionRate, DateTime.Now);
+                    var response = Client.GetAsync(url).Result;
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        if (response.StatusCode == HttpStatusCode.NotFound)
+                        {
+                            throw new Exception($"{fromCurrency.ToUpper()} is not a valid currency");
+                        }
+                        else
+                        {
+                            throw new Exception("Something went wrong while fetching the conversion rate");
+                        }
+                    }
+
+                    var content = response.Content.ReadAsStringAsync().Result;
+                    JsonElement element = JsonDocument.Parse(content).RootElement.GetProperty(fromCurrency);
+                    double conversionRate = element.GetProperty(toCurrency).GetDouble();
+                    ConversionCache[fromCurrency] = (element, DateTime.Now);
                     return conversionRate;
                 }
-                catch (Exception ex)
+                catch (KeyNotFoundException)
                 {
-                    return null;
+                    throw new Exception($"{toCurrency.ToUpper()} is not a valid currency");
                 }
             }
         }
 
         private Result GetConversion(double amountToConvert, string fromCurrency, string toCurrency)
         {
-            double? conversionRate = GetConversionRate(fromCurrency.ToLower(), toCurrency.ToLower());
-            fromCurrency = fromCurrency.ToUpper();
-            toCurrency = toCurrency.ToUpper();
-
-            if (conversionRate == null)
+            double conversionRate = 0;
+            try
+            {
+                conversionRate = GetConversionRate(fromCurrency.ToLower(), toCurrency.ToLower());
+            }
+            catch (Exception e)
             {
                 return new Result
                 {
-                    Title = $"Something went wrong while converting from {fromCurrency} to {toCurrency}",
-                    SubTitle = "Please try again. Check your internet and the plugin settings if this persists.",
+                    Title = e.Message,
+                    SubTitle = "Press enter to open the currencies list",
                     IcoPath = IconPath,
+                    Action = e =>
+                    {
+                        string url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json";
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                        return true;
+                    }
                 };
             }
 
-            double convertedAmount = Math.Round(amountToConvert * (double) conversionRate, 2);
+            double convertedAmount = Math.Round(amountToConvert * conversionRate, 2);
             string formatted = convertedAmount.ToString("N", CultureInfo.CurrentCulture);
 
             return new Result
             {
-                Title = $"{formatted} {toCurrency}",
-                SubTitle = $"Currency conversion from {fromCurrency} to {toCurrency}",
+                Title = $"{formatted} {toCurrency.ToUpper()}",
+                SubTitle = $"Currency conversion from {fromCurrency.ToUpper()} to {toCurrency.ToUpper()}",
                 IcoPath = IconPath,
                 Action = e =>
                 {

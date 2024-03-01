@@ -1,6 +1,6 @@
 # Currency Converter
 
-This is a plugin developed for PowerToys Run to convert currencies.
+PowerToys Run plugin which will convert real and crypto currencies.
 
 ![Screenshot](screenshots/screenshot1.png)
 
@@ -60,4 +60,4 @@ Your local currency, global currency and the quick conversion direction can also
 
 ## Conversion API
 
-This plugin internally uses [Currency API](https://github.com/fawazahmed0/currency-api) for the latest conversion rates. 
+This plugin internally uses [Currency API](https://github.com/fawazahmed0/exchange-api) for the latest conversion rates. 
