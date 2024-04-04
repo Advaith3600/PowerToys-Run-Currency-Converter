@@ -18,7 +18,7 @@ You can change the `$$` prefix from the settings page. To use this plugin withou
 1 eur to usd
 ```
 
-![Screenshot](screenshots/screenshot5.png)
+![Screenshot](screenshots/screenshot2.png)
 
 ### Crypto and other currencies
 
@@ -30,25 +30,25 @@ Example Usage:
 $$ 1 btc to usd
 ```
 
-![Screenshot](screenshots/screenshot2.png)
+![Screenshot](screenshots/screenshot3.png)
 
 ### Quick Conversions
 
-You can quickly convert from your local currency to a global currency by just typing the number.
+You can quickly convert from your local currency to a global currency by just typing the number. This list will also include all the extra currencies that you have configured in the settings panel.
 
 ```
 $$ 102.2
 ```
 
-![Screenshot](screenshots/screenshot3.png)
+![Screenshot](screenshots/screenshot4.png)
 
-Or, you can convert any currency to your local and global by:
+Or, you can convert any currency to your local and global including the extra currencies by:
 
 ```
 $$ 1 eur
 ```
 
-![Screenshot](screenshots/screenshot4.png)
+![Screenshot](screenshots/screenshot5.png)
 
 Your local currency, global currency and the quick conversion direction can also be changed from the settings page in PowerToys Run under this plugin. 
 

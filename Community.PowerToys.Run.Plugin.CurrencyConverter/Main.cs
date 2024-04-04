@@ -20,14 +20,15 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private PluginInitContext Context { get; set; }
         public string Name => "Currency Converter";
 
-        public string Description => "Currency Converter Plugin";
+        public string Description => "Convert real and crypto currencies.";
 
-        private Dictionary<string, (JsonElement, DateTime)> ConversionCache = new Dictionary<string, (JsonElement, DateTime)>();
+        private Dictionary<string, (JsonElement, DateTime)> ConversionCache = [];
         private readonly HttpClient Client = new HttpClient();
         private readonly RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
 
         private int ConversionDirection;
         private string LocalCurrency, GlobalCurrency;
+        private string[] ExtraCurrencies;
 
         public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>()
         {
@@ -37,12 +38,12 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 DisplayLabel = "Quick Convertion Direction",
                 DisplayDescription = "Set in which direction you want to convert.",
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
-                ComboBoxItems = new List<KeyValuePair<string, string>>
-                {
+                ComboBoxItems =
+                [
                     new KeyValuePair<string, string>("From local to global", "0"),
                     new KeyValuePair<string, string>("From global to local", "1"),
-                },
-                ComboBoxValue = ConversionDirection,
+                ],
+                ComboBoxValue = 0,
             },
             new PluginAdditionalOption()
             {
@@ -60,6 +61,14 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
                 TextValue = "USD",
             },
+            new PluginAdditionalOption()
+            {
+                Key = "QuickConversionExtraCurrencies",
+                DisplayLabel = "Extra currencies for quick conversion",
+                DisplayDescription = "Add currencies comma separated. eg: USD, EUR, BTC",
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
+                TextValue = "",
+            },
         };
 
         public void UpdateSettings(PowerLauncherPluginSettings settings)
@@ -70,8 +79,14 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 string _LocalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency").TextValue;
                 LocalCurrency = _LocalCurrency == "" ? regionInfo.ISOCurrencySymbol : _LocalCurrency;
 
-                string _GlobalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionGlobalCurrency").TextValue;
-                GlobalCurrency = _GlobalCurrency == "" ? "USD" : _GlobalCurrency;
+                GlobalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionGlobalCurrency").TextValue;
+
+                ExtraCurrencies = settings.AdditionalOptions
+                    .FirstOrDefault(x => x.Key == "QuickConversionExtraCurrencies")
+                    .TextValue.Split(',')
+                    .Select(x => x.Trim())
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .ToArray();
             }
         }
 
@@ -119,12 +134,20 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
         }
 
-        private Result GetConversion(double amountToConvert, string fromCurrency, string toCurrency)
+        private Result? GetConversion(double amountToConvert, string fromCurrency, string toCurrency)
         {
+            fromCurrency = fromCurrency.ToLower();
+            toCurrency = toCurrency.ToLower();
+
+            if (fromCurrency == toCurrency || fromCurrency == "" || toCurrency == "")
+            {
+                return null;
+            }
+
             double conversionRate = 0;
             try
             {
-                conversionRate = GetConversionRate(fromCurrency.ToLower(), toCurrency.ToLower());
+                conversionRate = GetConversionRate(fromCurrency, toCurrency);
             }
             catch (Exception e)
             {
@@ -158,17 +181,17 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             };
         }
 
-        public List<Result> Query(Query query)
+        private List<Result?> ParseQuery(string search)
         {
             double amountToConvert = 0;
             string fromCurrency = "";
             string toCurrency = "";
 
-            var match = Regex.Match(query.Search.Trim(), @"([0-9.,]+) ?(\w*) ?(to)? ?(\w*)");
+            var match = Regex.Match(search.Trim(), @"([0-9.,]+) ?(\w*) ?(to)? ?(\w*)");
 
             if (! match.Success)
             {
-                return new List<Result>();
+                return [];
             }
 
             if (double.TryParse(match.Groups[1].Value, out amountToConvert))
@@ -186,25 +209,45 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 fromCurrency = ConversionDirection == 0 ? LocalCurrency : GlobalCurrency;
                 toCurrency = ConversionDirection == 0 ? GlobalCurrency : LocalCurrency;
 
-                return new List<Result>
+                List<Result?> results = [GetConversion(amountToConvert, fromCurrency, toCurrency)];
+                foreach (string currency in ExtraCurrencies)
                 {
-                    GetConversion(amountToConvert, fromCurrency, toCurrency),
-                    GetConversion(amountToConvert, toCurrency, fromCurrency)
-                };
-            } 
+                    results.Add(GetConversion(amountToConvert, fromCurrency, currency));
+                }
+
+                results.Add(GetConversion(amountToConvert, toCurrency, fromCurrency));
+                foreach (string currency in ExtraCurrencies)
+                {
+                    results.Add(GetConversion(amountToConvert, toCurrency, currency));
+                }
+
+                return results;
+            }
             else if (String.IsNullOrEmpty(toCurrency))
             {
-                return new List<Result>
-                {
+                List<Result?> results =
+                [
                     GetConversion(amountToConvert, fromCurrency, ConversionDirection == 0 ? GlobalCurrency : LocalCurrency),
                     GetConversion(amountToConvert, fromCurrency, ConversionDirection == 0 ? LocalCurrency : GlobalCurrency)
-                };
+                ];
+
+                foreach (string currency in ExtraCurrencies)
+                {
+                    results.Add(GetConversion(amountToConvert, fromCurrency, currency));
+                }
+
+                return results;
             }
 
-            return new List<Result>
-            {
+            return
+            [
                 GetConversion(amountToConvert, fromCurrency, toCurrency)
-            };
+            ];
+        }
+
+        public List<Result> Query(Query query)
+        {
+            return ParseQuery(query.Search).Where(x => x != null).ToList();
         }
 
         public void Init(PluginInitContext context)

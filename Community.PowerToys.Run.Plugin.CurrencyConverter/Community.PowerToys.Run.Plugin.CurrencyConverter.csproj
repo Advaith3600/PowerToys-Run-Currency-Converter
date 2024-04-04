@@ -8,26 +8,46 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>Community.PowerToys.Run.Plugin.CurrencyConverter</RootNamespace>
     <AssemblyName>Community.PowerToys.Run.Plugin.CurrencyConverter</AssemblyName>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <Platforms>AnyCPU;x64;ARM64</Platforms>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(Platform)' == 'x64'">
-    <Reference Include="libs\x64\PowerToys.Common.UI.dll" />
-    <Reference Include="libs\x64\PowerToys.ManagedCommon.dll" />
-    <Reference Include="libs\x64\PowerToys.Settings.UI.Lib.dll" />
-    <Reference Include="libs\x64\Wox.Infrastructure.dll" />
-    <Reference Include="libs\x64\Wox.Plugin.dll" />
+    <Reference Include="PowerToys.Common.UI">
+      <HintPath>Libs\x64\PowerToys.Common.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="PowerToys.ManagedCommon">
+      <HintPath>Libs\x64\PowerToys.ManagedCommon.dll</HintPath>
+    </Reference>
+    <Reference Include="PowerToys.Settings.UI.Lib">
+      <HintPath>Libs\x64\PowerToys.Settings.UI.Lib.dll</HintPath>
+    </Reference>
+    <Reference Include="Wox.Infrastructure">
+      <HintPath>Libs\x64\Wox.Infrastructure.dll</HintPath>
+    </Reference>
+    <Reference Include="Wox.Plugin">
+      <HintPath>Libs\x64\Wox.Plugin.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup Condition="'$(Platform)' == 'ARM64'">
-    <Reference Include="libs\ARM64\PowerToys.Common.UI.dll" />
-    <Reference Include="libs\ARM64\PowerToys.ManagedCommon.dll" />
-    <Reference Include="libs\ARM64\PowerToys.Settings.UI.Lib.dll" />
-    <Reference Include="libs\ARM64\Wox.Infrastructure.dll" />
-    <Reference Include="libs\ARM64\Wox.Plugin.dll" />
+    <Reference Include="PowerToys.Common.UI">
+      <HintPath>Libs\ARM64\PowerToys.Common.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="PowerToys.ManagedCommon">
+      <HintPath>Libs\ARM64\PowerToys.ManagedCommon.dll</HintPath>
+    </Reference>
+    <Reference Include="PowerToys.Settings.UI.Lib">
+      <HintPath>Libs\ARM64\PowerToys.Settings.UI.Lib.dll</HintPath>
+    </Reference>
+    <Reference Include="Wox.Infrastructure">
+      <HintPath>Libs\ARM64\Wox.Infrastructure.dll</HintPath>
+    </Reference>
+    <Reference Include="Wox.Plugin">
+      <HintPath>Libs\ARM64\Wox.Plugin.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
