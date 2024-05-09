@@ -26,22 +26,35 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private readonly HttpClient Client = new HttpClient();
         private readonly RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
 
-        private int ConversionDirection;
-        private string LocalCurrency, GlobalCurrency;
-        private string[] ExtraCurrencies;
+        private int ConversionDirection, OutputStyle;
+        private string LocalCurrency;
+        private string[] Currencies;
 
         public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>()
         {
             new PluginAdditionalOption()
             {
-                Key = "QuickConversionDirection",
-                DisplayLabel = "Quick Convertion Direction",
-                DisplayDescription = "Set in which direction you want to convert.",
+                Key = "ConversionOutputStyle",
+                DisplayLabel = "Conversion Output Style",
+                DisplayDescription = "Full Text: 2 USD = 1.86 EUR, Short Text: 1.86 EUR",
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
                 ComboBoxItems =
                 [
-                    new KeyValuePair<string, string>("From local to global", "0"),
-                    new KeyValuePair<string, string>("From global to local", "1"),
+                    new KeyValuePair<string, string>("Short Text", "0"),
+                    new KeyValuePair<string, string>("Full Text", "1"),
+                ],
+                ComboBoxValue = 0,
+            },
+            new PluginAdditionalOption()
+            {
+                Key = "QuickConversionDirection",
+                DisplayLabel = "Quick Convertion Direction",
+                DisplayDescription = "Set in which direction you want to convert first.",
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
+                ComboBoxItems =
+                [
+                    new KeyValuePair<string, string>("Local currency to other currencies", "0"),
+                    new KeyValuePair<string, string>("Other currencies to local currency", "1"),
                 ],
                 ComboBoxValue = 0,
             },
@@ -55,19 +68,11 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             },
             new PluginAdditionalOption()
             {
-                Key = "QuickConversionGlobalCurrency",
-                DisplayLabel = "Quick Convertion Global Currency",
-                DisplayDescription = "Set your global currency.",
-                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
-                TextValue = "USD",
-            },
-            new PluginAdditionalOption()
-            {
-                Key = "QuickConversionExtraCurrencies",
-                DisplayLabel = "Extra currencies for quick conversion",
+                Key = "QuickConversionCurrencies",
+                DisplayLabel = "Currencies for quick conversion",
                 DisplayDescription = "Add currencies comma separated. eg: USD, EUR, BTC",
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
-                TextValue = "",
+                TextValue = "USD",
             },
         };
 
@@ -76,13 +81,14 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             if (settings != null && settings.AdditionalOptions != null)
             {
                 ConversionDirection = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionDirection")?.ComboBoxValue ?? 0;
+
+                OutputStyle = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputStyle")?.ComboBoxValue ?? 0;
+
                 string _LocalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency").TextValue;
                 LocalCurrency = _LocalCurrency == "" ? regionInfo.ISOCurrencySymbol : _LocalCurrency;
 
-                GlobalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionGlobalCurrency").TextValue;
-
-                ExtraCurrencies = settings.AdditionalOptions
-                    .FirstOrDefault(x => x.Key == "QuickConversionExtraCurrencies")
+                Currencies = settings.AdditionalOptions
+                    .FirstOrDefault(x => x.Key == "QuickConversionCurrencies")
                     .TextValue.Split(',')
                     .Select(x => x.Trim())
                     .Where(x => !string.IsNullOrEmpty(x))
@@ -92,7 +98,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private double GetConversionRate(string fromCurrency, string toCurrency)
         {
-            if (ConversionCache.ContainsKey(fromCurrency) && ConversionCache[fromCurrency].Item2 > DateTime.Now.AddHours(-1)) // cache for 1 hour
+            if (ConversionCache.ContainsKey(fromCurrency) && ConversionCache[fromCurrency].Item2 > DateTime.Now.AddHours(-3)) // cache for 3 hour
             {
                 try
                 {
@@ -166,12 +172,14 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
 
             double convertedAmount = Math.Round(amountToConvert * conversionRate, 2);
-            string formatted = convertedAmount.ToString("N", CultureInfo.CurrentCulture);
+            string fromFormatted = amountToConvert.ToString("N", CultureInfo.CurrentCulture);
+            string toFormatted = convertedAmount.ToString("N", CultureInfo.CurrentCulture);
 
             return new Result
             {
-                Title = $"{formatted} {toCurrency.ToUpper()}",
+                Title = OutputStyle == 0 ? $"{toFormatted} {toCurrency.ToUpper()}" : $"{fromFormatted} {fromCurrency.ToUpper()} = {toFormatted} {toCurrency.ToUpper()}",
                 SubTitle = $"Currency conversion from {fromCurrency.ToUpper()} to {toCurrency.ToUpper()}",
+                QueryTextDisplay = $"{toFormatted} {toCurrency.ToUpper()}",
                 IcoPath = IconPath,
                 Action = e =>
                 {
@@ -187,7 +195,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             string fromCurrency = "";
             string toCurrency = "";
 
-            var match = Regex.Match(search.Trim(), @"([0-9.,]+) ?(\w*) ?(to)? ?(\w*)");
+            var match = Regex.Match(search.Trim(), @"^([0-9.,]+) ?(\w*) ?(to)? ?(\w*)$");
 
             if (! match.Success)
             {
@@ -206,34 +214,51 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
             if (String.IsNullOrEmpty(fromCurrency)) 
             {
-                fromCurrency = ConversionDirection == 0 ? LocalCurrency : GlobalCurrency;
-                toCurrency = ConversionDirection == 0 ? GlobalCurrency : LocalCurrency;
-
-                List<Result?> results = [GetConversion(amountToConvert, fromCurrency, toCurrency)];
-                foreach (string currency in ExtraCurrencies)
+                List<Result?> results = [];
+                
+                foreach (string currency in Currencies)
                 {
-                    results.Add(GetConversion(amountToConvert, fromCurrency, currency));
+                    if (ConversionDirection == 0)
+                    {
+                        results.Add(GetConversion(amountToConvert, LocalCurrency, currency));
+                    }
+                    else
+                    {
+                        results.Add(GetConversion(amountToConvert, currency, LocalCurrency));
+                    }
                 }
 
-                results.Add(GetConversion(amountToConvert, toCurrency, fromCurrency));
-                foreach (string currency in ExtraCurrencies)
+                foreach (string currency in Currencies)
                 {
-                    results.Add(GetConversion(amountToConvert, toCurrency, currency));
+                    if (ConversionDirection == 0)
+                    {
+                        results.Add(GetConversion(amountToConvert, currency, LocalCurrency));
+                    }
+                    else
+                    {
+                        results.Add(GetConversion(amountToConvert, LocalCurrency, currency));
+                    }
                 }
 
                 return results;
             }
             else if (String.IsNullOrEmpty(toCurrency))
             {
-                List<Result?> results =
-                [
-                    GetConversion(amountToConvert, fromCurrency, ConversionDirection == 0 ? GlobalCurrency : LocalCurrency),
-                    GetConversion(amountToConvert, fromCurrency, ConversionDirection == 0 ? LocalCurrency : GlobalCurrency)
-                ];
+                List<Result?> results = [];
 
-                foreach (string currency in ExtraCurrencies)
+                if (ConversionDirection == 0)
+                {
+                    results.Add(GetConversion(amountToConvert, fromCurrency, LocalCurrency));
+                }
+
+                foreach (string currency in Currencies)
                 {
                     results.Add(GetConversion(amountToConvert, fromCurrency, currency));
+                }
+
+                if (ConversionDirection == 1)
+                {
+                    results.Add(GetConversion(amountToConvert, fromCurrency, LocalCurrency));
                 }
 
                 return results;
