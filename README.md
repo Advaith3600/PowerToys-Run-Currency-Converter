@@ -42,15 +42,14 @@ $$ 102.2
 
 ![Screenshot](screenshots/screenshot4.png)
 
-Or, you can convert any currency to your local and global including the extra currencies by:
+### Output formatting
 
-```
-$$ 1 eur
-```
+The plugin supports two modes of output
+
+1. Short Text: The output will contain the to currency only
+2. Full Text: The output will contain the from currency and the to currency
 
 ![Screenshot](screenshots/screenshot5.png)
-
-Your local currency, global currency and the quick conversion direction can also be changed from the settings page in PowerToys Run under this plugin. 
 
 ## Installation
 
