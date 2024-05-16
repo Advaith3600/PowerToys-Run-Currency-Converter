@@ -180,9 +180,24 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 };
             }
 
-            double convertedAmount = Math.Round(amountToConvert * conversionRate, OutputPrecision);
-            string fromFormatted = amountToConvert.ToString($"N{OutputPrecision}", CultureInfo.CurrentCulture);
-            string toFormatted = convertedAmount.ToString($"N{OutputPrecision}", CultureInfo.CurrentCulture);
+            int precision = OutputPrecision;
+            double rawConvertedAmount = Math.Abs(amountToConvert * conversionRate);
+            double convertedAmount = Math.Round(rawConvertedAmount, precision);
+
+            if (rawConvertedAmount < 1)
+            {
+                string rawStr = rawConvertedAmount.ToString("F10", CultureInfo.InvariantCulture);
+                int decimalPointIndex = rawStr.IndexOf('.');
+                if (decimalPointIndex != -1)
+                {
+                    int numberOfZeros = rawStr.Substring(decimalPointIndex + 1).TakeWhile(c => c == '0').Count();
+                    precision = numberOfZeros + OutputPrecision;
+                    convertedAmount = Math.Round(rawConvertedAmount, precision);
+                }
+            }
+
+            string fromFormatted = amountToConvert.ToString("N", CultureInfo.CurrentCulture);
+            string toFormatted = convertedAmount.ToString($"N{precision}", CultureInfo.CurrentCulture);
 
             return new Result
             {
@@ -192,7 +207,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 IcoPath = IconPath,
                 Action = e =>
                 {
-                    Clipboard.SetText(convertedAmount.ToString());
+                    Clipboard.SetText(rawConvertedAmount.ToString());
                     return true;
                 }
             };
