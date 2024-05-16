@@ -26,7 +26,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private readonly HttpClient Client = new HttpClient();
         private readonly RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
 
-        private int ConversionDirection, OutputStyle;
+        private int ConversionDirection, OutputStyle, OutputPrecision;
         private string LocalCurrency;
         private string[] Currencies;
 
@@ -47,8 +47,16 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             },
             new PluginAdditionalOption()
             {
+                Key = "ConversionOutputPrecision",
+                DisplayLabel = "Conversion Output Precision",
+                DisplayDescription = "Control the amount of decimal points shown on the output",
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Numberbox,
+                NumberValue = 2,
+            },
+            new PluginAdditionalOption()
+            {
                 Key = "QuickConversionDirection",
-                DisplayLabel = "Quick Convertion Direction",
+                DisplayLabel = "Quick Conversion Direction",
                 DisplayDescription = "Set in which direction you want to convert first.",
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
                 ComboBoxItems =
@@ -61,7 +69,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             new PluginAdditionalOption()
             {
                 Key = "QuickConversionLocalCurrency",
-                DisplayLabel = "Quick Convertion Local Currency",
+                DisplayLabel = "Quick Conversion Local Currency",
                 DisplayDescription = "Set your local currency.",
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
                 TextValue = regionInfo.ISOCurrencySymbol,
@@ -83,6 +91,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 ConversionDirection = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionDirection")?.ComboBoxValue ?? 0;
 
                 OutputStyle = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputStyle")?.ComboBoxValue ?? 0;
+                OutputPrecision = (int) (settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputPrecision")?.NumberValue ?? 2);
 
                 string _LocalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency").TextValue;
                 LocalCurrency = _LocalCurrency == "" ? regionInfo.ISOCurrencySymbol : _LocalCurrency;
@@ -171,9 +180,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 };
             }
 
-            double convertedAmount = Math.Round(amountToConvert * conversionRate, 2);
-            string fromFormatted = amountToConvert.ToString("N", CultureInfo.CurrentCulture);
-            string toFormatted = convertedAmount.ToString("N", CultureInfo.CurrentCulture);
+            double convertedAmount = Math.Round(amountToConvert * conversionRate, OutputPrecision);
+            string fromFormatted = amountToConvert.ToString($"N{OutputPrecision}", CultureInfo.CurrentCulture);
+            string toFormatted = convertedAmount.ToString($"N{OutputPrecision}", CultureInfo.CurrentCulture);
 
             return new Result
             {
