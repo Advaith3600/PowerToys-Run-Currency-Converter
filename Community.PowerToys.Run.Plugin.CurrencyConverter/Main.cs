@@ -207,7 +207,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 IcoPath = IconPath,
                 Action = e =>
                 {
-                    Clipboard.SetText(rawConvertedAmount.ToString());
+                    Clipboard.SetText(toFormatted);
                     return true;
                 }
             };
@@ -257,12 +257,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression[i] == '.'))
                         sbuf.Append(expression[i++]);
                     values.Push(double.Parse(sbuf.ToString()));
-                    if (i < expression.Length && expression[i] == ')')
-                    {
-                        while (ops.Count > 0 && ops.Peek() != '(')
-                            values.Push(ApplyOp(ops.Pop(), values.Pop(), values.Pop()));
-                        ops.Pop();
-                    }
+                    i--;
                 }
 
                 else if (expression[i] == '(')
@@ -270,7 +265,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
                 else if (expression[i] == ')')
                 {
-                    while (ops.Peek() != '(')
+                    while (ops.Count > 0 && ops.Peek() != '(')
                         values.Push(ApplyOp(ops.Pop(), values.Pop(), values.Pop()));
                     ops.Pop();
                 }
