@@ -9,6 +9,7 @@ using ManagedCommon;
 using Microsoft.PowerToys.Settings.UI.Library;
 
 using Clipboard = System.Windows.Clipboard;
+using System.Text;
 
 namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {
@@ -93,12 +94,11 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 OutputStyle = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputStyle")?.ComboBoxValue ?? 0;
                 OutputPrecision = (int) (settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputPrecision")?.NumberValue ?? 2);
 
-                string _LocalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency").TextValue;
+                string _LocalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency")?.TextValue ?? "";
                 LocalCurrency = _LocalCurrency == "" ? regionInfo.ISOCurrencySymbol : _LocalCurrency;
 
-                Currencies = settings.AdditionalOptions
-                    .FirstOrDefault(x => x.Key == "QuickConversionCurrencies")
-                    .TextValue.Split(',')
+                Currencies = (settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionCurrencies")?.TextValue ?? "")
+                    .Split(',')
                     .Select(x => x.Trim())
                     .Where(x => !string.IsNullOrEmpty(x))
                     .ToArray();
@@ -213,30 +213,117 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             };
         }
 
+        public bool HasPrecedence(char op1, char op2)
+        {
+            if (op2 == '(' || op2 == ')')
+                return false;
+            if ((op1 == '*' || op1 == '/') && (op2 == '+' || op2 == '-'))
+                return false;
+            else
+                return true;
+        }
+
+        public double ApplyOp(char op, double b, double a)
+        {
+            switch (op)
+            {
+                case '+':
+                    return a + b;
+                case '-':
+                    return a - b;
+                case '*':
+                    return a * b;
+                case '/':
+                    if (b == 0)
+                        throw new NotSupportedException("Cannot divide by zero");
+                    return a / b;
+            }
+            return 0;
+        }
+
+        public double Evaluate(string expression)
+        {
+            Stack<double> values = new Stack<double>();
+            Stack<char> ops = new Stack<char>();
+
+            for (int i = 0; i < expression.Length; i++)
+            {
+                if (expression[i] == ' ')
+                    continue;
+
+                if (expression[i] >= '0' && expression[i] <= '9')
+                {
+                    StringBuilder sbuf = new StringBuilder();
+                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression[i] == '.'))
+                        sbuf.Append(expression[i++]);
+                    values.Push(double.Parse(sbuf.ToString()));
+                    if (i < expression.Length && expression[i] == ')')
+                    {
+                        while (ops.Count > 0 && ops.Peek() != '(')
+                            values.Push(ApplyOp(ops.Pop(), values.Pop(), values.Pop()));
+                        ops.Pop();
+                    }
+                }
+
+                else if (expression[i] == '(')
+                    ops.Push(expression[i]);
+
+                else if (expression[i] == ')')
+                {
+                    while (ops.Peek() != '(')
+                        values.Push(ApplyOp(ops.Pop(), values.Pop(), values.Pop()));
+                    ops.Pop();
+                }
+
+                else if (expression[i] == '+' || expression[i] == '-' || expression[i] == '*' || expression[i] == '/')
+                {
+                    while (ops.Count > 0 && HasPrecedence(expression[i], ops.Peek()))
+                        values.Push(ApplyOp(ops.Pop(), values.Pop(), values.Pop()));
+                    ops.Push(expression[i]);
+                }
+            }
+
+            while (ops.Count > 0)
+                values.Push(ApplyOp(ops.Pop(), values.Pop(), values.Pop()));
+
+            return values.Pop();
+        }
+
         private List<Result?> ParseQuery(string search)
         {
-            double amountToConvert = 0;
-            string fromCurrency = "";
-            string toCurrency = "";
-
-            var match = Regex.Match(search.Trim(), @"^([0-9.,]+) ?(\w*) ?(to)? ?(\w*)$");
+            var match = Regex.Match(search.Trim(), @"^([0-9.,+\-*/ \(\)]+) ?(\w*) ?(to)? ?(\w*)$");
 
             if (! match.Success)
             {
                 return [];
             }
 
-            if (double.TryParse(match.Groups[1].Value, out amountToConvert))
+            double amountToConvert;
+            try
             {
-                fromCurrency = match.Groups[2].Value;
-
-                if (!string.IsNullOrEmpty(match.Groups[3].Value) && match.Groups[3].Value.ToLower() == "to")
-                {
-                    toCurrency = match.Groups[4].Value;
-                }
+                amountToConvert = Evaluate(match.Groups[1].Value.Replace(",", ""));
+            }
+            catch (Exception)
+            {
+                return [
+                    new Result
+                    {
+                        Title = "Invalid expression provided",
+                        SubTitle = "Please check your mathematical expression",
+                        IcoPath = IconPath,
+                    }
+                ];
             }
 
-            if (String.IsNullOrEmpty(fromCurrency)) 
+            string fromCurrency = match.Groups[2].Value;
+            string toCurrency = "";
+
+            if (!string.IsNullOrEmpty(match.Groups[3].Value) && match.Groups[3].Value.ToLower() == "to")
+            {
+                toCurrency = match.Groups[4].Value;
+            }
+
+            if (string.IsNullOrEmpty(fromCurrency)) 
             {
                 List<Result?> results = [];
                 
@@ -266,7 +353,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
                 return results;
             }
-            else if (String.IsNullOrEmpty(toCurrency))
+            else if (string.IsNullOrEmpty(toCurrency))
             {
                 List<Result?> results = [];
 
