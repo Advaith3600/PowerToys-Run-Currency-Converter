@@ -46,10 +46,10 @@ $$ 102.2
 
 The plugin supports two modes of output:
 
-Short Text: The output will only contain the target currency.
-Full Text: The output will contain both the source and target currencies.
+1. Short Text: The output will only contain the target currency.
+2. Full Text: The output will contain both the source and target currencies.
 
-You can adjust the precision value in the settings. This will determine the number of decimal points to be displayed. The plugin outputs values using dynamic precision. This means that if a value is less than 0, the number of non-zero decimals displayed will be exactly as specified in the settings.
+You can adjust the precision value in the settings. This will determine the number of decimal points to be displayed. The plugin outputs values using dynamic precision. This means that if a value is less than 1, the number of non-zero decimals displayed will be exactly as specified in the settings.
 
 ![Screenshot](screenshots/screenshot5.png)
 
