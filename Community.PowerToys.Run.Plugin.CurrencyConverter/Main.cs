@@ -286,7 +286,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private List<Result?> ParseQuery(string search)
         {
-            var match = Regex.Match(search.Trim(), @"^([0-9.,+\-*/ \(\)]+) ?(\w*) ?(to)? ?(\w*)$");
+            var match = Regex.Match(search.Trim(), @"^\s*(?:(?:(?<amount>[0-9.,+\-*/ \(\)]+)\s*(?<from>\w*))|(?:(?<from>[a-zA-Z]*)\s*(?<amount>[0-9.,+\-*/ \(\)]+)))\s*(?:to)?\s*(?<to>\w*)\s*$");
 
             if (! match.Success)
             {
@@ -296,7 +296,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             double amountToConvert;
             try
             {
-                amountToConvert = Evaluate(match.Groups[1].Value.Replace(",", ""));
+                amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(",", ""));
             }
             catch (Exception)
             {
@@ -310,12 +310,12 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 ];
             }
 
-            string fromCurrency = match.Groups[2].Value;
+            string fromCurrency = match.Groups["from"].Value;
             string toCurrency = "";
 
-            if (!string.IsNullOrEmpty(match.Groups[3].Value) && match.Groups[3].Value.ToLower() == "to")
+            if (!string.IsNullOrEmpty(match.Groups["to"].Value))
             {
-                toCurrency = match.Groups[4].Value;
+                toCurrency = match.Groups["to"].Value;
             }
 
             if (string.IsNullOrEmpty(fromCurrency)) 
