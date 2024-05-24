@@ -1,6 +1,8 @@
 ﻿using System.Net;
+using System.Text;
 using System.Net.Http;
 using System.Text.Json;
+using System.Windows.Input;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -9,11 +11,10 @@ using ManagedCommon;
 using Microsoft.PowerToys.Settings.UI.Library;
 
 using Clipboard = System.Windows.Clipboard;
-using System.Text;
 
 namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {
-    public class Main : IPlugin, ISettingProvider
+    public class Main : IPlugin, IContextMenu, ISettingProvider, IDisposable
     {
         public static string PluginID => "EF1F634F20484459A3679B4DE7B07999";
 
@@ -23,9 +24,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public string Description => "Convert real and crypto currencies.";
 
+        private bool Disposed { get; set; }
+
         private Dictionary<string, (JsonElement, DateTime)> ConversionCache = [];
-        private readonly HttpClient Client = new HttpClient();
-        private readonly RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
 
         private int ConversionDirection, OutputStyle, OutputPrecision;
         private string LocalCurrency;
@@ -73,7 +74,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 DisplayLabel = "Quick Conversion Local Currency",
                 DisplayDescription = "Set your local currency.",
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
-                TextValue = regionInfo.ISOCurrencySymbol,
+                TextValue = (new RegionInfo(CultureInfo.CurrentCulture.Name)).ISOCurrencySymbol,
             },
             new PluginAdditionalOption()
             {
@@ -94,6 +95,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 OutputStyle = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputStyle")?.ComboBoxValue ?? 0;
                 OutputPrecision = (int) (settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputPrecision")?.NumberValue ?? 2);
 
+                RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
                 string _LocalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency")?.TextValue ?? "";
                 LocalCurrency = _LocalCurrency == "" ? regionInfo.ISOCurrencySymbol : _LocalCurrency;
 
@@ -123,6 +125,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 string url = $"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{fromCurrency}.min.json";
                 try
                 {
+                    HttpClient Client = new HttpClient();
                     var response = Client.GetAsync(url).Result;
                     if (!response.IsSuccessStatusCode)
                     {
@@ -197,19 +200,19 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
 
             string fromFormatted = amountToConvert.ToString("N", CultureInfo.CurrentCulture);
-            string toFormatted = convertedAmount.ToString($"N{precision}", CultureInfo.CurrentCulture);
+            string toFormatted = (amountToConvert < 0 ? convertedAmount * -1 : convertedAmount).ToString($"N{precision}", CultureInfo.CurrentCulture);
+
+            string compressedOutput = $"{toFormatted} {toCurrency.ToUpper()}";
+            string expandedOutput = $"{fromFormatted} {fromCurrency.ToUpper()} = {toFormatted} {toCurrency.ToUpper()}";
 
             return new Result
             {
-                Title = OutputStyle == 0 ? $"{toFormatted} {toCurrency.ToUpper()}" : $"{fromFormatted} {fromCurrency.ToUpper()} = {toFormatted} {toCurrency.ToUpper()}",
+                Title = OutputStyle == 0 ? compressedOutput : expandedOutput,
                 SubTitle = $"Currency conversion from {fromCurrency.ToUpper()} to {toCurrency.ToUpper()}",
-                QueryTextDisplay = $"{toFormatted} {toCurrency.ToUpper()}",
+                QueryTextDisplay = compressedOutput,
                 IcoPath = IconPath,
-                Action = e =>
-                {
-                    Clipboard.SetText(toFormatted);
-                    return true;
-                }
+                ContextData = toFormatted,
+                ToolTipData = new ToolTipData(compressedOutput, expandedOutput),
             };
         }
 
@@ -311,12 +314,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
 
             string fromCurrency = match.Groups["from"].Value;
-            string toCurrency = "";
-
-            if (!string.IsNullOrEmpty(match.Groups["to"].Value))
-            {
-                toCurrency = match.Groups["to"].Value;
-            }
+            string toCurrency = string.IsNullOrEmpty(match.Groups["to"].Value) ? "" : match.Groups["to"].Value;
 
             if (string.IsNullOrEmpty(fromCurrency)) 
             {
@@ -383,31 +381,67 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public void Init(PluginInitContext context)
         {
-            Context = context;
+            Context = context ?? throw new ArgumentNullException(nameof(context));
             Context.API.ThemeChanged += OnThemeChanged;
             UpdateIconPath(Context.API.GetCurrentTheme());
         }
 
-        private void UpdateIconPath(Theme theme)
+        public List<ContextMenuResult> LoadContextMenus(Result selectedResult)
         {
-            if (theme == Theme.Light || theme == Theme.HighContrastWhite)
+            if (selectedResult?.ContextData is string characters)
             {
-                IconPath = "images/icon-black.png";
+                return
+                [
+                    new ContextMenuResult
+                    {
+                        PluginName = Name,
+                        Title = "Copy (Enter)",
+                        FontFamily = "Segoe Fluent Icons,Segoe MDL2 Assets",
+                        Glyph = "\xE8C8",
+                        AcceleratorKey = Key.Enter,
+                        Action = _ => CopyToClipboard(characters.ToString()),
+                    },
+                ];
             }
-            else
-            {
-                IconPath = "images/icon-white.png";
-            }
+
+            return [];
         }
 
-        private void OnThemeChanged(Theme currentTheme, Theme newTheme)
+        private void UpdateIconPath(Theme theme) => IconPath = theme == Theme.Light || theme == Theme.HighContrastWhite ? Context?.CurrentPluginMetadata.IcoPathLight : Context?.CurrentPluginMetadata.IcoPathDark;
+
+        private void OnThemeChanged(Theme currentTheme, Theme newTheme) => UpdateIconPath(newTheme);
+
+        System.Windows.Controls.Control ISettingProvider.CreateSettingPanel() => throw new NotImplementedException();
+
+        public void Dispose()
         {
-            UpdateIconPath(newTheme);
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
-        public System.Windows.Controls.Control CreateSettingPanel()
+        protected virtual void Dispose(bool disposing)
         {
-            throw new NotImplementedException();
+            if (Disposed || !disposing)
+            {
+                return;
+            }
+
+            if (Context?.API != null)
+            {
+                Context.API.ThemeChanged -= OnThemeChanged;
+            }
+
+            Disposed = true;
+        }
+
+        private static bool CopyToClipboard(string? value)
+        {
+            if (value != null)
+            {
+                Clipboard.SetText(value);
+            }
+
+            return true;
         }
     }
 }
