@@ -174,12 +174,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     Title = e.Message,
                     SubTitle = "Press enter to open the currencies list",
                     IcoPath = IconPath,
-                    Action = e =>
-                    {
-                        string url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json";
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-                        return true;
-                    }
+                    ContextData = new Dictionary<string, string> { { "externalLink", "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json" } },
                 };
             }
 
@@ -211,7 +206,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 SubTitle = $"Currency conversion from {fromCurrency.ToUpper()} to {toCurrency.ToUpper()}",
                 QueryTextDisplay = compressedOutput,
                 IcoPath = IconPath,
-                ContextData = toFormatted,
+                ContextData = new Dictionary<string, string> { { "copy", toFormatted } },
                 ToolTipData = new ToolTipData(compressedOutput, expandedOutput),
             };
         }
@@ -388,23 +383,52 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public List<ContextMenuResult> LoadContextMenus(Result selectedResult)
         {
-            if (selectedResult?.ContextData is string characters)
+            List<ContextMenuResult> results = [];
+
+            if (selectedResult?.ContextData is Dictionary<string, string> contextData)
             {
-                return
-                [
-                    new ContextMenuResult
-                    {
-                        PluginName = Name,
-                        Title = "Copy (Enter)",
-                        FontFamily = "Segoe Fluent Icons,Segoe MDL2 Assets",
-                        Glyph = "\xE8C8",
-                        AcceleratorKey = Key.Enter,
-                        Action = _ => CopyToClipboard(characters.ToString()),
-                    },
-                ];
+                if (contextData.ContainsKey("copy"))
+                {
+                    results.Add(
+                        new ContextMenuResult
+                        {
+                            PluginName = Name,
+                            Title = "Copy (Enter)",
+                            FontFamily = "Segoe Fluent Icons,Segoe MDL2 Assets",
+                            Glyph = "\xE8C8",
+                            AcceleratorKey = Key.Enter,
+                            Action = _ =>
+                            {
+                                Clipboard.SetText(contextData["copy"].ToString());
+                                return true;
+                            }
+                        }
+                    );
+                }
+
+                if (contextData.ContainsKey("externalLink"))
+                {
+                    string shortcutPrefix = contextData.ContainsKey("copy") ? "Ctrl + " : "";
+                    results.Add(
+                        new ContextMenuResult
+                        {
+                            PluginName = Name,
+                            Title = $"Open ({shortcutPrefix}Enter)",
+                            FontFamily = "Segoe Fluent Icons,Segoe MDL2 Assets",
+                            Glyph = "\xE8A7",
+                            AcceleratorKey = Key.Enter,
+                            AcceleratorModifiers = contextData.ContainsKey("copy") ? ModifierKeys.Control : ModifierKeys.None,
+                            Action = e =>
+                            {
+                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(contextData["externalLink"].ToString()) { UseShellExecute = true });
+                                return true;
+                            }
+                        }
+                    );
+                }
             }
 
-            return [];
+            return results;
         }
 
         private void UpdateIconPath(Theme theme) => IconPath = theme == Theme.Light || theme == Theme.HighContrastWhite ? Context?.CurrentPluginMetadata.IcoPathLight : Context?.CurrentPluginMetadata.IcoPathDark;
@@ -432,16 +456,6 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
 
             Disposed = true;
-        }
-
-        private static bool CopyToClipboard(string? value)
-        {
-            if (value != null)
-            {
-                Clipboard.SetText(value);
-            }
-
-            return true;
         }
     }
 }
