@@ -165,6 +165,22 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             double conversionRate = 0;
             try
             {
+                HttpClient Client = new HttpClient();
+                string url = $"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@2024.7.5/v1/currencies.json";
+                var response = Client.GetAsync(url).Result;
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception("Something went wrong while fetching the currencies list");
+                }
+                var content = response.Content.ReadAsStringAsync().Result;
+                if (string.IsNullOrEmpty(content))
+                {
+                    throw new Exception("Something went wrong while fetching the currencies list");
+                }
+                Dictionary<string, JsonElement> currencies = JsonDocument.Parse(content).RootElement.EnumerateObject().ToDictionary(x => x.Name, x => x.Value);
+                fromCurrency = currencies.FirstOrDefault(x => x.Key.StartsWith(fromCurrency)).Key;
+                toCurrency = currencies.FirstOrDefault(x => x.Key.StartsWith(toCurrency)).Key;
+
                 conversionRate = GetConversionRate(fromCurrency, toCurrency);
             }
             catch (Exception e)
