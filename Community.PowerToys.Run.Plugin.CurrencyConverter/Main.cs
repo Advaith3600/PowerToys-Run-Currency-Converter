@@ -29,6 +29,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private Dictionary<string, (JsonElement, DateTime)> ConversionCache = [];
 
         private int ConversionDirection, OutputStyle, OutputPrecision;
+        private bool CountryInput;
         private string LocalCurrency;
         private string[] Currencies;
 
@@ -84,6 +85,14 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
                 TextValue = "USD",
             },
+            new PluginAdditionalOption() 
+            {
+                Key = "ConversionCountryInput",
+                DisplayLabel = "Allow country names",
+                DisplayDescription = "The local currency will automatically be extracted from the given country name.",
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Checkbox,
+                Value = true,
+            },
         };
 
         public void UpdateSettings(PowerLauncherPluginSettings settings)
@@ -104,6 +113,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     .Select(x => x.Trim())
                     .Where(x => !string.IsNullOrEmpty(x))
                     .ToArray();
+
+                CountryInput = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionCountryInput")?.Value ?? true;
             }
         }
 
@@ -166,21 +177,101 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             try
             {
                 HttpClient Client = new HttpClient();
-                string url = $"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@2024.7.5/v1/currencies.json";
-                var response = Client.GetAsync(url).Result;
+
+                string currencyUrl = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@2024.7.5/v1/currencies.json";
+                var response = Client.GetAsync(currencyUrl).Result;
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new Exception("Something went wrong while fetching the currencies list");
                 }
-                var content = response.Content.ReadAsStringAsync().Result;
-                if (string.IsNullOrEmpty(content))
+                var currencyContent = response.Content.ReadAsStringAsync().Result;
+                if (string.IsNullOrEmpty(currencyContent))
                 {
                     throw new Exception("Something went wrong while fetching the currencies list");
                 }
-                Dictionary<string, JsonElement> currencies = JsonDocument.Parse(content).RootElement.EnumerateObject().ToDictionary(x => x.Name, x => x.Value);
-                fromCurrency = currencies.FirstOrDefault(x => x.Key.StartsWith(fromCurrency)).Key;
-                toCurrency = currencies.FirstOrDefault(x => x.Key.StartsWith(toCurrency)).Key;
+                List<string> currencies = JsonDocument.Parse(currencyContent).RootElement.EnumerateObject().Select(x => x.Name).ToList();
 
+                string countryUrl = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@2024.7.5/v1/country.json";
+                response = Client.GetAsync(countryUrl).Result;
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception("Something went wrong while fetching the countries list");
+                }
+                var countryContent = response.Content.ReadAsStringAsync().Result;
+                if (string.IsNullOrEmpty(countryContent))
+                {
+                    throw new Exception("Something went wrong while fetching the countries list");
+                }
+                Dictionary<string, string> countryCurrencies = JsonDocument.Parse(countryContent).RootElement.EnumerateObject().ToDictionary(x => x.Value.GetProperty("country_name").ToString(), x => x.Value.GetProperty("currency_code").GetString());
+        
+                
+                if (!currencies.Contains(fromCurrency))
+                {
+                    if (CountryInput) 
+                    {
+                        string fromCurrencyCode = currencies.FirstOrDefault(x => x.StartsWith(fromCurrency));
+                        if (fromCurrencyCode == null) 
+                        {
+                            if (countryCurrencies.FirstOrDefault(x => x.Key.StartsWith(fromCurrency)).Key != null) 
+                            {
+                                fromCurrency = countryCurrencies.FirstOrDefault(x => x.Key.StartsWith(fromCurrency)).Value;
+                            } 
+                            else 
+                            {
+                                throw new Exception("No currency found for the given input");
+                            }
+                        } 
+                        else 
+                        {
+                            fromCurrency = fromCurrencyCode;
+                        }
+                    } 
+                    else 
+                    {
+                        string fromCurrencyCode = currencies.FirstOrDefault(x => x.StartsWith(fromCurrency));
+                        if (fromCurrencyCode == null) 
+                        {
+                            throw new Exception("No currency found for the given input");
+                        } 
+                        else 
+                        {
+                            fromCurrency = fromCurrencyCode;
+                        }
+                    }
+                }
+
+                if (!currencies.Contains(toCurrency))
+                {
+                    if (CountryInput) 
+                    {
+                        string toCurrencyCode = currencies.FirstOrDefault(x => x.StartsWith(toCurrency));
+                        if (toCurrencyCode == null) 
+                        {
+                            if (countryCurrencies.FirstOrDefault(x => x.Key.StartsWith(toCurrency)).Key != null) 
+                            {
+                                toCurrency = countryCurrencies.FirstOrDefault(x => x.Key.StartsWith(toCurrency)).Value;
+                            } 
+                            else 
+                            {
+                                throw new Exception("No currency found for the given input");
+                            }
+                        } 
+                        else 
+                        {
+                            toCurrency = toCurrencyCode;
+                        }
+                    } 
+                    else 
+                    {
+                        string toCurrencyCode = currencies.FirstOrDefault(x => x.StartsWith(toCurrency));
+                        if (toCurrencyCode == null) 
+                        {
+                            throw new Exception("No currency found for the given input");
+                        } 
+                        else 
+                        {
+                            toCurrency = toCurrencyCode;
+                        }
                 conversionRate = GetConversionRate(fromCurrency, toCurrency);
             }
             catch (Exception e)
