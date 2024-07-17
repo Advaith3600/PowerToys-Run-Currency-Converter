@@ -122,7 +122,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
             else
             {
-                string url = $"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{fromCurrency}.min.json";
+                string url = $"https://latest.currency-api.pages.dev/v1/currencies/{fromCurrency}.min.json";
                 try
                 {
                     HttpClient Client = new HttpClient();
