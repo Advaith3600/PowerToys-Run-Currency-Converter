@@ -28,12 +28,21 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private Dictionary<string, (JsonElement, DateTime)> ConversionCache = [];
 
+        private bool ShowWarningsInGlobal;
         private int ConversionDirection, OutputStyle, OutputPrecision;
         private string LocalCurrency;
         private string[] Currencies;
 
         public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>()
         {
+            new PluginAdditionalOption()
+            {
+                Key = "ShowWarningsInGlobal",
+                DisplayLabel = "Show warnings in global results",
+                DisplayDescription = "Warnings from the plugin are suppressed when the \"Include in global result\" is checked",
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Checkbox,
+                Value = false,
+            },
             new PluginAdditionalOption()
             {
                 Key = "ConversionOutputStyle",
@@ -90,6 +99,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         {
             if (settings != null && settings.AdditionalOptions != null)
             {
+                ShowWarningsInGlobal = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ShowWarningsInGlobal")?.Value ?? false;
+
                 ConversionDirection = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionDirection")?.ComboBoxValue ?? 0;
 
                 OutputStyle = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputStyle")?.ComboBoxValue ?? 0;
@@ -152,7 +163,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
         }
 
-        private Result? GetConversion(double amountToConvert, string fromCurrency, string toCurrency)
+        private Result? GetConversion(bool isGlobal, double amountToConvert, string fromCurrency, string toCurrency)
         {
             fromCurrency = fromCurrency.ToLower();
             toCurrency = toCurrency.ToLower();
@@ -169,7 +180,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
             catch (Exception e)
             {
-                return new Result
+                return isGlobal && !ShowWarningsInGlobal ? null : new Result
                 {
                     Title = e.Message,
                     SubTitle = "Press enter to open the currencies list",
@@ -282,7 +293,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             return values.Pop();
         }
 
-        private List<Result?> ParseQuery(string search)
+        private List<Result?> ParseQuery(string search, bool isGlobal)
         {
             var match = Regex.Match(search.Trim(), @"^\s*(?:(?:(?<amount>[0-9.,+\-*/ \(\)]+)\s*(?<from>\w*))|(?:(?<from>[a-zA-Z]*)\s*(?<amount>[0-9.,+\-*/ \(\)]+)))\s*(?:to)?\s*(?<to>\w*)\s*$");
 
@@ -298,7 +309,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
             catch (Exception)
             {
-                return [
+                return isGlobal && !ShowWarningsInGlobal ? [] : [
                     new Result
                     {
                         Title = "Invalid expression provided",
@@ -319,11 +330,11 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 {
                     if (ConversionDirection == 0)
                     {
-                        results.Add(GetConversion(amountToConvert, LocalCurrency, currency));
+                        results.Add(GetConversion(isGlobal, amountToConvert, LocalCurrency, currency));
                     }
                     else
                     {
-                        results.Add(GetConversion(amountToConvert, currency, LocalCurrency));
+                        results.Add(GetConversion(isGlobal, amountToConvert, currency, LocalCurrency));
                     }
                 }
 
@@ -331,12 +342,12 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 {
                     if (ConversionDirection == 0)
                     {
-                        results.Add(GetConversion(amountToConvert, currency, LocalCurrency));
+                        results.Add(GetConversion(isGlobal, amountToConvert, currency, LocalCurrency));
                     }
                     else
                     {
-                        results.Add(GetConversion(amountToConvert, LocalCurrency, currency));
-                    }
+                        results.Add(GetConversion(isGlobal, amountToConvert, LocalCurrency, currency));
+                    } 
                 }
 
                 return results;
@@ -347,17 +358,17 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
                 if (ConversionDirection == 0)
                 {
-                    results.Add(GetConversion(amountToConvert, fromCurrency, LocalCurrency));
+                    results.Add(GetConversion(isGlobal, amountToConvert, fromCurrency, LocalCurrency));
                 }
 
                 foreach (string currency in Currencies)
                 {
-                    results.Add(GetConversion(amountToConvert, fromCurrency, currency));
+                    results.Add(GetConversion(isGlobal, amountToConvert, fromCurrency, currency));
                 }
 
                 if (ConversionDirection == 1)
                 {
-                    results.Add(GetConversion(amountToConvert, fromCurrency, LocalCurrency));
+                    results.Add(GetConversion(isGlobal, amountToConvert, fromCurrency, LocalCurrency));
                 }
 
                 return results;
@@ -365,13 +376,13 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
             return
             [
-                GetConversion(amountToConvert, fromCurrency, toCurrency)
+                GetConversion(isGlobal, amountToConvert, fromCurrency, toCurrency)
             ];
         }
 
         public List<Result> Query(Query query)
         {
-            return ParseQuery(query.Search).Where(x => x != null).ToList();
+            return ParseQuery(query.Search, string.IsNullOrEmpty(query.ActionKeyword)).Where(x => x != null).ToList();
         }
 
         public void Init(PluginInitContext context)
