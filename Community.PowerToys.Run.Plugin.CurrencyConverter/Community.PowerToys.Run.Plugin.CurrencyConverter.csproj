@@ -10,7 +10,7 @@
     <AssemblyName>Community.PowerToys.Run.Plugin.CurrencyConverter</AssemblyName>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    <Version>1.1.5</Version>
+    <Version>1.1.6</Version>
     <Platforms>x64;ARM64</Platforms>
     <PlatformTarget>$(Platform)</PlatformTarget>
   </PropertyGroup>

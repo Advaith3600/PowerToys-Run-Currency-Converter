@@ -263,7 +263,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 if (expression[i] >= '0' && expression[i] <= '9')
                 {
                     StringBuilder sbuf = new StringBuilder();
-                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression[i] == '.'))
+                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression[i] == '.' || expression[i] == ','))
                         sbuf.Append(expression[i++]);
                     values.Push(double.Parse(sbuf.ToString()));
                     i--;
@@ -305,7 +305,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             double amountToConvert;
             try
             {
-                amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(",", ""));
+                CultureInfo culture = CultureInfo.CurrentCulture;
+                amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(culture.NumberFormat.NumberDecimalSeparator == "," ? "." : ",", ""));
             }
             catch (Exception)
             {
