@@ -1,7 +1,9 @@
-﻿using System.Net;
+﻿using System.IO;
+using System.Net;
 using System.Text;
 using System.Net.Http;
 using System.Text.Json;
+using System.Reflection;
 using System.Windows.Input;
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -32,6 +34,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private int ConversionDirection, OutputStyle, OutputPrecision;
         private string LocalCurrency;
         private string[] Currencies;
+
+        private string AliasFileLocation = "";
 
         public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>()
         {
@@ -104,7 +108,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 ConversionDirection = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionDirection")?.ComboBoxValue ?? 0;
 
                 OutputStyle = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputStyle")?.ComboBoxValue ?? 0;
-                OutputPrecision = (int) (settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputPrecision")?.NumberValue ?? 2);
+                OutputPrecision = (int)(settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputPrecision")?.NumberValue ?? 2);
 
                 RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
                 string _LocalCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency")?.TextValue ?? "";
@@ -163,10 +167,38 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
         }
 
+        private string GetCurrencyFromAlias(string currency)
+        {
+            try
+            {
+                if (!File.Exists(AliasFileLocation))
+                {
+                    return currency;
+                }
+
+                var jsonData = File.ReadAllText(AliasFileLocation);
+                using (JsonDocument doc = JsonDocument.Parse(jsonData))
+                {
+                    if (doc.RootElement.TryGetProperty(currency, out JsonElement value))
+                    {
+                        return value.GetString();
+                    }
+                    else
+                    {
+                        return currency;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return currency;
+            }
+        }
+
         private Result? GetConversion(bool isGlobal, double amountToConvert, string fromCurrency, string toCurrency)
         {
-            fromCurrency = fromCurrency.ToLower();
-            toCurrency = toCurrency.ToLower();
+            fromCurrency = GetCurrencyFromAlias(fromCurrency.ToLower());
+            toCurrency = GetCurrencyFromAlias(toCurrency.ToLower());
 
             if (fromCurrency == toCurrency || fromCurrency == "" || toCurrency == "")
             {
@@ -297,7 +329,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         {
             var match = Regex.Match(search.Trim(), @"^\s*(?:(?:(?<amount>[0-9.,+\-*/ \(\)]+)\s*(?<from>\w*))|(?:(?<from>[a-zA-Z]*)\s*(?<amount>[0-9.,+\-*/ \(\)]+)))\s*(?:to)?\s*(?<to>\w*)\s*$");
 
-            if (! match.Success)
+            if (!match.Success)
             {
                 return [];
             }
@@ -323,10 +355,10 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             string fromCurrency = match.Groups["from"].Value;
             string toCurrency = string.IsNullOrEmpty(match.Groups["to"].Value) ? "" : match.Groups["to"].Value;
 
-            if (string.IsNullOrEmpty(fromCurrency)) 
+            if (string.IsNullOrEmpty(fromCurrency))
             {
                 List<Result?> results = [];
-                
+
                 foreach (string currency in Currencies)
                 {
                     if (ConversionDirection == 0)
@@ -348,7 +380,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     else
                     {
                         results.Add(GetConversion(isGlobal, amountToConvert, LocalCurrency, currency));
-                    } 
+                    }
                 }
 
                 return results;
@@ -383,7 +415,48 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public List<Result> Query(Query query)
         {
-            return ParseQuery(query.Search, string.IsNullOrEmpty(query.ActionKeyword)).Where(x => x != null).ToList();
+            List<Result> results = ParseQuery(query.Search, string.IsNullOrEmpty(query.ActionKeyword)).Where(x => x != null).ToList();
+
+            if (!string.IsNullOrEmpty(query.ActionKeyword))
+            {
+                try
+                {
+                    if (!File.Exists(AliasFileLocation))
+                    {
+                        throw new FileNotFoundException("Alias file not found.");
+                    }
+
+                    string jsonContent = File.ReadAllText(AliasFileLocation);
+                    ValidateJsonFormat(jsonContent);
+                }
+                catch (Exception ex) when (ex is FileNotFoundException || ex is JsonException)
+                {
+                    results.Add(new Result
+                    {
+                        Title = ex.Message,
+                        SubTitle = "Press enter to see how to debug",
+                        IcoPath = IconPath,
+                        ContextData = new Dictionary<string, string> { { "externalLink", "https://github.com/Advaith3600/PowerToys-Run-Currency-Converter?tab=readme-ov-file#aliasing" } },
+                    });
+                }
+            }
+
+            return results;
+        }
+
+        private void ValidateJsonFormat(string jsonContent)
+        {
+            try
+            {
+                using (JsonDocument doc = JsonDocument.Parse(jsonContent))
+                {
+                    // If parsing succeeds, the JSON is valid
+                }
+            }
+            catch (JsonException)
+            {
+                throw new JsonException("Invalid JSON format.");
+            }
         }
 
         public void Init(PluginInitContext context)
@@ -391,6 +464,40 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             Context = context ?? throw new ArgumentNullException(nameof(context));
             Context.API.ThemeChanged += OnThemeChanged;
             UpdateIconPath(Context.API.GetCurrentTheme());
+
+            AliasFileLocation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PowerToys", "CurrencyConverter", "alias.json");
+            EnsureAliasFileExists();
+        }
+
+        private void EnsureAliasFileExists()
+        {
+            try
+            {
+                if (!File.Exists(AliasFileLocation))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(AliasFileLocation));
+                    string defaultJsonContent = ReadEmbeddedResource("Community.PowerToys.Run.Plugin.CurrencyConverter.alias.default.json");
+                    File.WriteAllText(AliasFileLocation, defaultJsonContent);
+                }
+            }
+            catch (Exception) { }
+        }
+
+        private string ReadEmbeddedResource(string resourceName)
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+            {
+                if (stream == null)
+                {
+                    throw new FileNotFoundException("Resource not found: " + resourceName);
+                }
+
+                using (StreamReader reader = new StreamReader(stream))
+                {
+                    return reader.ReadToEnd();
+                }
+            }
         }
 
         public List<ContextMenuResult> LoadContextMenus(Result selectedResult)

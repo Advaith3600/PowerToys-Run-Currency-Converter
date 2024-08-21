@@ -7,6 +7,11 @@ $version = "$version".Trim()
 
 foreach ($platform in "x64", "ARM64")
 {
+    if (Test-Path -Path "$PSScriptRoot\CurrencyConverter-$version-$platform.zip")
+    {
+        Remove-Item -Path "$PSScriptRoot\CurrencyConverter-$version-$platform.zip"
+    }
+
     if (Test-Path -Path "$projectDirectory\bin")
     {
         Remove-Item -Path "$projectDirectory\bin\*" -Recurse

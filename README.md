@@ -20,6 +20,21 @@ You can change the `$$` prefix from the settings page. To use this plugin withou
 
 ![Screenshot](screenshots/screenshot2.png)
 
+### Aliasing
+
+To make currency conversions more convenient, you can use aliasing to assign custom names to currencies. For example, you can alias "dollar" to "usd". 
+
+To set up aliasing, follow these steps:
+
+1. Locate the configuration file `alias.json` in `Documents/PowerToys/CurrencyConverter`.
+2. Open the `alias.json` file in a text editor.
+3. Add an entry for each alias you want to create. Each entry should have the format `"alias": "currency_code"`. For example, to alias "dollar" to "usd", add the following entry: `"dollar": "usd"`.
+4. Save the `alias.json` file.
+
+Please note that when creating aliases, ensure that the alias key does **not** contain any numbers or spaces and is in lowercase.
+
+Once you have set up the aliases, you can use them in your currency conversions. For example, instead of typing `$$ 100 usd to eur`, you can simply type `$$ 100 dollar to eur`.
+
 ### Crypto and other currencies
 
 This plugin also converters real currencies to crypto currencies and vice versa. Refer [here](https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies.json) for the full list of available conversions. 

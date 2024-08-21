@@ -10,7 +10,7 @@
     <AssemblyName>Community.PowerToys.Run.Plugin.CurrencyConverter</AssemblyName>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    <Version>1.1.6</Version>
+    <Version>1.2.0</Version>
     <Platforms>x64;ARM64</Platforms>
     <PlatformTarget>$(Platform)</PlatformTarget>
   </PropertyGroup>
@@ -49,6 +49,12 @@
     <Reference Include="Wox.Plugin">
       <HintPath>Libs\ARM64\Wox.Plugin.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="alias.default.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
