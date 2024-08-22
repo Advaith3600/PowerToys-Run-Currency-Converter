@@ -21,6 +21,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         public static string PluginID => "EF1F634F20484459A3679B4DE7B07999";
 
         private string IconPath { get; set; }
+        private string WarningIconPath { get; set; }
         private PluginInitContext Context { get; set; }
         public string Name => "Currency Converter";
 
@@ -212,12 +213,14 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
             catch (Exception e)
             {
+                const string link = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json";
                 return isGlobal && !ShowWarningsInGlobal ? null : new Result
                 {
                     Title = e.Message,
-                    SubTitle = "Press enter to open the currencies list",
-                    IcoPath = IconPath,
-                    ContextData = new Dictionary<string, string> { { "externalLink", "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json" } },
+                    SubTitle = "Press enter or click to open the currencies list",
+                    IcoPath = WarningIconPath,
+                    ContextData = new Dictionary<string, string> { { "externalLink", link } },
+                    Action = _ => PerformAction("externalLink", link)
                 };
             }
 
@@ -250,7 +253,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 QueryTextDisplay = compressedOutput,
                 IcoPath = IconPath,
                 ContextData = new Dictionary<string, string> { { "copy", toFormatted } },
-                ToolTipData = new ToolTipData(compressedOutput, expandedOutput),
+                ToolTipData = new ToolTipData(expandedOutput, "Click to copy the converted amount"),
+                Action = _ => PerformAction("copy", toFormatted)
             };
         }
 
@@ -347,7 +351,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     {
                         Title = "Invalid expression provided",
                         SubTitle = "Please check your mathematical expression",
-                        IcoPath = IconPath,
+                        IcoPath = WarningIconPath,
                     }
                 ];
             }
@@ -431,12 +435,14 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 }
                 catch (Exception ex) when (ex is FileNotFoundException || ex is JsonException)
                 {
+                    const string link = "https://github.com/Advaith3600/PowerToys-Run-Currency-Converter?tab=readme-ov-file#aliasing";
                     results.Add(new Result
                     {
                         Title = ex.Message,
-                        SubTitle = "Press enter to see how to debug",
-                        IcoPath = IconPath,
-                        ContextData = new Dictionary<string, string> { { "externalLink", "https://github.com/Advaith3600/PowerToys-Run-Currency-Converter?tab=readme-ov-file#aliasing" } },
+                        SubTitle = "Press enter or click to see how to fix this issue",
+                        IcoPath = WarningIconPath,
+                        ContextData = new Dictionary<string, string> { { "externalLink", link } },
+                        Action = _ => PerformAction("externalLink", link)
                     });
                 }
             }
@@ -516,11 +522,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                             FontFamily = "Segoe Fluent Icons,Segoe MDL2 Assets",
                             Glyph = "\xE8C8",
                             AcceleratorKey = Key.Enter,
-                            Action = _ =>
-                            {
-                                Clipboard.SetText(contextData["copy"].ToString());
-                                return true;
-                            }
+                            Action = _ => PerformAction("copy", contextData["copy"].ToString())
                         }
                     );
                 }
@@ -537,11 +539,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                             Glyph = "\xE8A7",
                             AcceleratorKey = Key.Enter,
                             AcceleratorModifiers = contextData.ContainsKey("copy") ? ModifierKeys.Control : ModifierKeys.None,
-                            Action = e =>
-                            {
-                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(contextData["externalLink"].ToString()) { UseShellExecute = true });
-                                return true;
-                            }
+                            Action = _ => PerformAction("externalLink", contextData["externalLink"].ToString())
                         }
                     );
                 }
@@ -550,7 +548,26 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             return results;
         }
 
-        private void UpdateIconPath(Theme theme) => IconPath = theme == Theme.Light || theme == Theme.HighContrastWhite ? Context?.CurrentPluginMetadata.IcoPathLight : Context?.CurrentPluginMetadata.IcoPathDark;
+        private bool PerformAction(string action, string context)
+        {
+            switch (action)
+            {
+                case "copy":
+                    Clipboard.SetText(context);
+                    break;
+                case "externalLink":
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(context) { UseShellExecute = true });
+                    break;
+            }
+
+            return true;
+        }
+
+        private void UpdateIconPath(Theme theme)
+        {
+            IconPath = theme == Theme.Light || theme == Theme.HighContrastWhite ? Context?.CurrentPluginMetadata.IcoPathLight : Context?.CurrentPluginMetadata.IcoPathDark;
+            WarningIconPath = "images\\warning.png";
+        }
 
         private void OnThemeChanged(Theme currentTheme, Theme newTheme) => UpdateIconPath(newTheme);
 
