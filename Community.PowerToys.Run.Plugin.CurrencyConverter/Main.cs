@@ -250,23 +250,15 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 return true;
         }
 
-        public double ApplyOp(char op, double b, double a)
+        public double ApplyOp(char op, double b, double a) => op switch
         {
-            switch (op)
-            {
-                case '+':
-                    return a + b;
-                case '-':
-                    return a - b;
-                case '*':
-                    return a * b;
-                case '/':
-                    if (b == 0)
-                        throw new NotSupportedException("Cannot divide by zero");
-                    return a / b;
-            }
-            return 0;
-        }
+            '+' => a + b,
+            '-' => a - b,
+            '*' => a * b,
+            '/' when b != 0 => a / b,
+            '/' => throw new DivideByZeroException("Cannot divide by zero"),
+            _ => throw new ArgumentException("Invalid operator", nameof(op))
+        };
 
         public double Evaluate(string expression)
         {

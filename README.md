@@ -35,6 +35,8 @@ Please note that when creating aliases, ensure that the alias key does **not** c
 
 Once you have set up the aliases, you can use them in your currency conversions. For example, instead of typing `$$ 100 usd to eur`, you can simply type `$$ 100 dollar to eur`.
 
+If you are getting an error saying the alias file is not found, try closing PowerToys and opening it again. If the issue persists, you may need to download a newer version of the Currency Converter plugin and reinstall it.
+
 ### Crypto and other currencies
 
 This plugin also converters real currencies to crypto currencies and vice versa. Refer [here](https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies.json) for the full list of available conversions. 
