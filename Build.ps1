@@ -21,7 +21,7 @@ foreach ($platform in "x64", "ARM64")
         Remove-Item -Path "$projectDirectory\obj\*" -Recurse
     }
 
-    dotnet build $projectDirectory.sln -c Release /p:Platform=$platform 
+    dotnet build $projectDirectory.sln -c Release /p:Platform=$platform --property WarningLevel=0
 
     Remove-Item -Path "$projectDirectory\bin\*" -Recurse -Include *.xml, *.pdb, PowerToys.*, Wox.*
     Rename-Item -Path "$projectDirectory\bin\$platform\Release" -NewName "CurrencyConverter"
@@ -31,3 +31,4 @@ foreach ($platform in "x64", "ARM64")
 
 Set-Location -Path "exe"
 ./build.ps1
+Set-Location -Path ".."

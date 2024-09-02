@@ -37,10 +37,10 @@ Extract-Zip -zipPath $zipX64 -extractPath $tempDirX64
 Extract-Zip -zipPath $zipARM64 -extractPath $tempDirARM64
 
 # Build x64 installer
-Build-Installer -platform "x64" -targetDir $tempDirX64
+Build-Installer -platform "x64" -targetDir "$tempDirX64\CurrencyConverter"
 
 # Build ARM64 installer
-Build-Installer -platform "ARM64" -targetDir $tempDirARM64
+Build-Installer -platform "ARM64" -targetDir "$tempDirARM64\CurrencyConverter"
 
 # Check if the installers were created successfully
 $x64Exists = Test-Path "$outputDir\CurrencyConverter-$version-x64.exe"
