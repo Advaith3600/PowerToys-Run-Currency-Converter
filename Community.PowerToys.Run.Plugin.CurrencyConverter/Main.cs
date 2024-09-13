@@ -22,7 +22,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private PluginInitContext _context;
         private bool _disposed;
         private readonly Dictionary<string, (JsonElement Rates, DateTime Timestamp)> _conversionCache = new();
-        private readonly HttpClient _httpClient = new();
+        private HttpClient _httpClient;
 
         // Settings
         private bool _showWarningsInGlobal;
@@ -452,6 +452,13 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 "CurrencyConverter",
                 AliasFileName);
             EnsureAliasFileExists();
+
+            var handler = new HttpClientHandler
+            {
+                UseDefaultCredentials = true,
+                PreAuthenticate = true
+            };
+            _httpClient = new HttpClient(handler);
         }
 
         private void EnsureAliasFileExists()
