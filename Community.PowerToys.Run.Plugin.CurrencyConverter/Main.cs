@@ -360,7 +360,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private List<Result> ParseQuery(string search, bool isGlobal)
         {
-            var match = Regex.Match(search.Trim(), @"^\s*(?:(?:(?<amount>[0-9.,+\-*/ \(\)]+)\s*(?<from>\w*))|(?:(?<from>[a-zA-Z]*)\s*(?<amount>[0-9.,+\-*/ \(\)]+)))\s*(?:to)?\s*(?<to>\w*)\s*$");
+            var match = Regex.Match(search.Trim(), @"^\s*(?:(?:(?<amount>[0-9.,+\-*/ \(\)]+)\s*(?<from>\w*))|(?:(?<from>[a-zA-Z]*)\s*(?<amount>[0-9.,+\-*/ \(\)]+)))\s*(?:to|in)?\s*(?<to>\w*)\s*$");
 
             if (!match.Success)
             {
