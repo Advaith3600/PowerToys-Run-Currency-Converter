@@ -1,0 +1,67 @@
+name: Publish to package managers
+
+on:
+  release:
+    types: 
+      - published
+
+  workflow_dispatch:
+  
+jobs:
+  build:
+    if: "!github.event.release.prerelease"
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4.1.1
+
+      - name: Set up Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git clone https://github.com/Advaith3600/PowerToys-Run-Currency-Converter.git --depth 1
+
+      - name: Extract Metadata
+        id: extract_metadata
+        run: |
+          $response = Invoke-RestMethod -Uri https://api.github.com/repos/Advaith3600/PowerToys-Run-Currency-Converter/releases/latest
+          
+          $ver = $response.tag_name.TrimStart('v')
+          
+          $exe = $response.assets | Where-Object { $_.name -like "*x64.exe" } | Select-Object -ExpandProperty browser_download_url
+          $exeARM = $response.assets | Where-Object { $_.name -like "*ARM64.exe" } | Select-Object -ExpandProperty browser_download_url
+          
+          Invoke-WebRequest -Uri $exe -OutFile .\x64.exe
+          Invoke-WebRequest -Uri $exeARM -OutFile .\arm.exe
+          $exehash = Get-FileHash -Path .\x64.exe -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+          $exeARMhash = Get-FileHash -Path .\arm.exe -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+
+          echo "::set-output name=ver::$ver"
+          echo "::set-output name=exe::$exe"
+          echo "::set-output name=exehash::$exehash"
+          echo "::set-output name=exeARM::$exeARM"
+          echo "::set-output name=exeARMhash::$exeARMhash"
+
+      - name: Publish to winget
+        run: |
+          $wingetPackage = "advaith.CurrencyConverterPowerToys"
+          Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+          cd .\PowerToys-Run-Currency-Converter\winget-pkg
+          Get-ChildItem *.* -Recurse | ForEach-Object { 
+            (Get-Content $_.FullName) -replace '_VERSION_', "${{ steps.extract_metadata.outputs.ver }}" `
+                                     -replace '_URL_', "${{ steps.extract_metadata.outputs.exe }}" `
+                                     -replace '_CRC_', "${{ steps.extract_metadata.outputs.exehash }}" `
+                                     -replace '_armURL_', "${{ steps.extract_metadata.outputs.exeARM }}" `
+                                     -replace '_armCRC_', "${{ steps.extract_metadata.outputs.exeARMhash }}" | 
+            Set-Content $_.FullName 
+          }
+          ..\wingetcreate submit -p "New version: $wingetPackage version ${{ steps.extract_metadata.outputs.ver }}" -t ${{ secrets.WINGET_TOKEN }}
+
+      - name: Add and commit changes
+        run: |
+          cd .\PowerToys-Run-Currency-Converter
+          git add winget-pkg/
+          git commit -m "Winget package update"
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
