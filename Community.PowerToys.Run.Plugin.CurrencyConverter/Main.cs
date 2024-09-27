@@ -1,17 +1,18 @@
-﻿using System.Globalization;
+﻿using ManagedCommon;
+using Microsoft.PowerToys.Settings.UI.Library;
+using System.Collections.Concurrent;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
-using ManagedCommon;
-using Microsoft.PowerToys.Settings.UI.Library;
 using Wox.Plugin;
 
 namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {
-    public class Main : IPlugin, IContextMenu, ISettingProvider, IDisposable
+    public class Main : IPlugin, IContextMenu, ISettingProvider, IDisposable, IDelayedExecutionPlugin
     {
         public static string PluginID => "EF1F634F20484459A3679B4DE7B07999";
         public string Name => "Currency Converter";
@@ -21,7 +22,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private string _warningIconPath;
         private PluginInitContext _context;
         private bool _disposed;
-        private readonly Dictionary<string, (JsonElement Rates, DateTime Timestamp)> _conversionCache = new();
+        private readonly ConcurrentDictionary<string, (JsonElement Rates, DateTime Timestamp)> _conversionCache = new();
         private HttpClient _httpClient;
 
         // Settings
@@ -305,7 +306,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private List<Result> GetConversionResults(bool isGlobal, double amountToConvert, string fromCurrency, string toCurrency)
         {
-            var results = new List<Result?>();
+            var conversionTasks = new List<(int index, string fromCurrency, Task<Result?> task)>();
+            int index = 0;
 
             if (string.IsNullOrEmpty(fromCurrency))
             {
@@ -313,11 +315,11 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 {
                     if (_conversionDirection == 0)
                     {
-                        results.Add(GetConversion(isGlobal, amountToConvert, _localCurrency, currency));
+                        conversionTasks.Add((index++, _localCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, _localCurrency, currency))));
                     }
                     else
                     {
-                        results.Add(GetConversion(isGlobal, amountToConvert, currency, _localCurrency));
+                        conversionTasks.Add((index++, currency, Task.Run(() => GetConversion(isGlobal, amountToConvert, currency, _localCurrency))));
                     }
                 }
 
@@ -325,11 +327,11 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 {
                     if (_conversionDirection == 0)
                     {
-                        results.Add(GetConversion(isGlobal, amountToConvert, currency, _localCurrency));
+                        conversionTasks.Add((index++, currency, Task.Run(() => GetConversion(isGlobal, amountToConvert, currency, _localCurrency))));
                     }
                     else
                     {
-                        results.Add(GetConversion(isGlobal, amountToConvert, _localCurrency, currency));
+                        conversionTasks.Add((index++, _localCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, _localCurrency, currency))));
                     }
                 }
             }
@@ -337,23 +339,36 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             {
                 if (_conversionDirection == 0)
                 {
-                    results.Add(GetConversion(isGlobal, amountToConvert, fromCurrency, _localCurrency));
+                    conversionTasks.Add((index++, fromCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, fromCurrency, _localCurrency))));
                 }
 
                 foreach (string currency in _currencies)
                 {
-                    results.Add(GetConversion(isGlobal, amountToConvert, fromCurrency, currency));
+                    conversionTasks.Add((index++, fromCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, fromCurrency, currency))));
                 }
 
                 if (_conversionDirection == 1)
                 {
-                    results.Add(GetConversion(isGlobal, amountToConvert, fromCurrency, _localCurrency));
+                    conversionTasks.Add((index++, fromCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, fromCurrency, _localCurrency))));
                 }
             }
             else
             {
-                results.Add(GetConversion(isGlobal, amountToConvert, fromCurrency, toCurrency));
+                conversionTasks.Add((index++, fromCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, fromCurrency, toCurrency))));
             }
+
+            var groupedTasks = conversionTasks.GroupBy(t => t.fromCurrency);
+
+            var results = new Result?[conversionTasks.Count];
+
+            Parallel.ForEach(groupedTasks, group =>
+            {
+                foreach (var task in group)
+                {
+                    task.task.Wait();
+                    results[task.index] = task.task.Result;
+                }
+            });
 
             return results.Where(r => r != null).ToList();
         }
@@ -393,6 +408,13 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         }
 
         public List<Result> Query(Query query)
+        {
+            return string.IsNullOrEmpty(query.ActionKeyword) || string.IsNullOrEmpty(query.Search.Trim())
+                ? new List<Result>()
+                : new List<Result> { new Result { Title = "Loading...", SubTitle = "Please open an issue if needed.", IcoPath = _iconPath } };
+        }
+
+        public List<Result> Query(Query query, bool isDelayedExecution)
         {
             List<Result> results = ParseQuery(query.Search, string.IsNullOrEmpty(query.ActionKeyword)).Where(x => x != null).ToList();
 
