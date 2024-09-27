@@ -38,6 +38,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private const int CacheExpirationHours = 3;
         private const string AliasFileName = "alias.json";
         private const string DefaultAliasResourceName = "Community.PowerToys.Run.Plugin.CurrencyConverter.alias.default.json";
+        private const string GithubReadmeURL = "https://github.com/Advaith3600/PowerToys-Run-Currency-Converter?tab=readme-ov-file#aliasing";
 
         public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>
         {
@@ -138,9 +139,22 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
             if (!response.IsSuccessStatusCode)
             {
-                throw response.StatusCode == System.Net.HttpStatusCode.NotFound
-                    ? new Exception($"{fromCurrency.ToUpper()} is not a valid currency")
-                    : new Exception("Something went wrong while fetching the conversion rate");
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    throw new Exception($"{fromCurrency.ToUpper()} is not a valid currency");
+                }
+                else
+                {
+                    var fallbackUrl = $"https://latest.currency-api.pages.dev/v1/currencies/{fromCurrency}.min.json";
+                    response = _httpClient.GetAsync(fallbackUrl).Result;
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        throw response.StatusCode == System.Net.HttpStatusCode.NotFound
+                            ? new Exception($"{fromCurrency.ToUpper()} is not a valid currency")
+                            : new Exception("Something went wrong while fetching the conversion rate");
+                    }
+                }
             }
 
             var content = response.Content.ReadAsStringAsync().Result;
@@ -411,7 +425,18 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         {
             return string.IsNullOrEmpty(query.ActionKeyword) || string.IsNullOrEmpty(query.Search.Trim())
                 ? new List<Result>()
-                : new List<Result> { new Result { Title = "Loading...", SubTitle = "Please open an issue if needed.", IcoPath = _iconPath } };
+                : new List<Result>
+                {
+                    new Result
+                    {
+                        Title = "Loading...",
+                        SubTitle = "Please open an issue if needed.",
+                        IcoPath = _iconPath,
+                        ContextData = new Dictionary<string, string> { { "externalLink", GithubReadmeURL } },
+                        Action = _ => PerformAction("externalLink", GithubReadmeURL)
+                    }
+                };
+
         }
 
         public List<Result> Query(Query query, bool isDelayedExecution)
@@ -432,19 +457,21 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 }
                 catch (Exception ex) when (ex is FileNotFoundException || ex is JsonException)
                 {
-                    const string link = "https://github.com/Advaith3600/PowerToys-Run-Currency-Converter?tab=readme-ov-file#aliasing";
                     results.Add(new Result
                     {
                         Title = ex.Message,
                         SubTitle = "Press enter or click to see how to fix this issue",
                         IcoPath = _warningIconPath,
-                        ContextData = new Dictionary<string, string> { { "externalLink", link } },
-                        Action = _ => PerformAction("externalLink", link)
+                        ContextData = new Dictionary<string, string> { { "externalLink", GithubReadmeURL } },
+                        Action = _ => PerformAction("externalLink", GithubReadmeURL)
                     });
                 }
             }
 
-            return results;
+            return results
+                .GroupBy(r => new { r.Title, r.SubTitle })
+                .Select(g => g.First())
+                .ToList();
         }
 
         private void ValidateJsonFormat(string jsonContent)
