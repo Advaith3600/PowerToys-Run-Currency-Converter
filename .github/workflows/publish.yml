@@ -17,12 +17,7 @@ jobs:
 
       - name: Set up Git
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git clone https://${{ secrets.GH_TOKEN }}@github.com/Advaith3600/PowerToys-Run-Currency-Converter.git --depth 1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-
+          git clone https://github.com/Advaith3600/PowerToys-Run-Currency-Converter.git --depth 1
 
       - name: Publish to Package Managers
         run: |
@@ -43,19 +38,12 @@ jobs:
           Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
           cd .\PowerToys-Run-Currency-Converter\winget-pkg
           Get-ChildItem *.* -Recurse | ForEach-Object { 
-            (Get-Content $_.FullName) -replace '_VERSION_', "$ver" `
-                                     -replace '_URL_', "$exe" `
-                                     -replace '_CRC_', "$exehash" `
-                                     -replace '_armURL_', "$exeARM" `
-                                     -replace '_armCRC_', "$exeARMhash" | 
+            (Get-Content $_.FullName) -replace '__VERSION__', "$ver" `
+                                     -replace '__URL__', "$exe" `
+                                     -replace '__SHA256__', "$exehash" `
+                                     -replace '__armURL__', "$exeARM" `
+                                     -replace '__armSHA256__', "$exeARMhash" | 
             Set-Content $_.FullName 
           }
           echo "Publishing to winget..."
           ..\..\wingetcreate submit -p "New version: $wingetPackage version $ver" -t ${{ secrets.WINGET_TOKEN }} .
-
-      - name: Add and commit changes
-        run: |
-          cd .\PowerToys-Run-Currency-Converter
-          git add winget-pkg/
-          git commit -m "Winget package update"
-          git push origin main
