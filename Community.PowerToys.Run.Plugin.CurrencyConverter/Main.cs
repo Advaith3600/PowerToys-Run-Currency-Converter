@@ -30,6 +30,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private int _conversionDirection;
         private int _outputStyle;
         private int _outputPrecision;
+        private int _decimalSeparator;
         private string _localCurrency;
         private string[] _currencies;
         private string _aliasFileLocation;
@@ -50,7 +51,21 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Checkbox,
                 Value = false,
             },
-             new PluginAdditionalOption()
+            new PluginAdditionalOption()
+            {
+                Key = "DecimalSeparator",
+                DisplayLabel = "Decimal format separator",
+                DisplayDescription = "Change between dots and commas for decimal separation",
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
+                ComboBoxItems =
+                [
+                    new KeyValuePair<string, string>("Use system default", "0"),
+                    new KeyValuePair<string, string>("Always use dots for decimals", "1"),
+                    new KeyValuePair<string, string>("Always use commas for decimals", "2"),
+                ],
+                ComboBoxValue = 0,
+            },
+            new PluginAdditionalOption()
             {
                 Key = "ConversionOutputStyle",
                 DisplayLabel = "Conversion Output Style",
@@ -107,6 +122,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             if (settings?.AdditionalOptions == null) return;
 
             _showWarningsInGlobal = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ShowWarningsInGlobal")?.Value ?? false;
+            _decimalSeparator = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "DecimalSeparator")?.ComboBoxValue ?? 0;
             _conversionDirection = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionDirection")?.ComboBoxValue ?? 0;
             _outputStyle = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputStyle")?.ComboBoxValue ?? 0;
             _outputPrecision = (int)(settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputPrecision")?.NumberValue ?? 2);
@@ -275,6 +291,28 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             _ => throw new ArgumentException("Invalid operator", nameof(op))
         };
 
+        public NumberFormatInfo GetNumberFormatInfo()
+        {
+            NumberFormatInfo nfi = new NumberFormatInfo();
+
+            switch (_decimalSeparator)
+            {
+                case 1:
+                    nfi.NumberDecimalSeparator = ".";
+                    nfi.NumberGroupSeparator = ",";
+                    break;
+                case 2:
+                    nfi.NumberDecimalSeparator = ",";
+                    nfi.NumberGroupSeparator = ".";
+                    break;
+                default:
+                    nfi = CultureInfo.CurrentCulture.NumberFormat;
+                    break;
+            }
+
+            return nfi;
+        }
+
         public double Evaluate(string expression)
         {
             Stack<double> values = new Stack<double>();
@@ -288,9 +326,13 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 if (expression[i] >= '0' && expression[i] <= '9')
                 {
                     StringBuilder sbuf = new StringBuilder();
-                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression[i] == '.' || expression[i] == ','))
-                        sbuf.Append(expression[i++]);
-                    values.Push(double.Parse(sbuf.ToString()));
+                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression[i] == '.' || expression[i] == ',' || expression[i] == ' ')) {
+                        if (expression[i] != ' ')
+                            sbuf.Append(expression[i]);
+                        i++;
+                    }
+
+                    values.Push(double.Parse(sbuf.ToString(), GetNumberFormatInfo()));
                     i--;
                 }
 
@@ -400,7 +442,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             try
             {
                 CultureInfo culture = CultureInfo.CurrentCulture;
-                amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(culture.NumberFormat.NumberDecimalSeparator == "," ? "." : ",", ""));
+                amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(GetNumberFormatInfo().NumberGroupSeparator, ""));
             }
             catch (Exception)
             {
@@ -441,6 +483,11 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public List<Result> Query(Query query, bool isDelayedExecution)
         {
+            if (query.Search.Trim() is null || !isDelayedExecution)
+            {
+                return new List<Result>();
+            }
+
             List<Result> results = ParseQuery(query.Search, string.IsNullOrEmpty(query.ActionKeyword)).Where(x => x != null).ToList();
 
             if (!string.IsNullOrEmpty(query.ActionKeyword))
