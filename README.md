@@ -1,6 +1,9 @@
 # Currency Converter
 
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/advaith3600/PowerToys-Run-Currency-Converter/total)
+![GitHub Release](https://img.shields.io/github/v/release/advaith3600/PowerToys-Run-Currency-Converter)
 [![Mentioned in Awesome PowerToys Run Plugins](https://awesome.re/mentioned-badge.svg)](https://github.com/hlaueriksson/awesome-powertoys-run-plugins)
+
 
 PowerToys Run plugin which will convert real and crypto currencies.
 
