@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
 using Wox.Plugin;
+using Wox.Plugin.Logger;
 
 namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {
@@ -37,6 +38,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         // Constants
         private const int CacheExpirationHours = 3;
+        private const bool EnableLog = false;
         private const string AliasFileName = "alias.json";
         private const string DefaultAliasResourceName = "Community.PowerToys.Run.Plugin.CurrencyConverter.alias.default.json";
         private const string GithubReadmeURL = "https://github.com/Advaith3600/PowerToys-Run-Currency-Converter?tab=readme-ov-file#aliasing";
@@ -143,12 +145,15 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             if (_conversionCache.TryGetValue(fromCurrency, out var cachedData) &&
                 cachedData.Timestamp > DateTime.Now.AddHours(-CacheExpirationHours))
             {
+                if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Found it from the cache", GetType());
                 if (cachedData.Rates.TryGetProperty(toCurrency, out var rate))
                 {
                     return rate.GetDouble();
                 }
                 throw new Exception($"{toCurrency.ToUpper()} is not a valid currency");
             }
+
+            if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Trying to fetch", GetType());
 
             var url = $"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{fromCurrency}.min.json";
             var response = _httpClient.GetAsync(url).Result;
@@ -170,7 +175,13 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                             ? new Exception($"{fromCurrency.ToUpper()} is not a valid currency")
                             : new Exception("Something went wrong while fetching the conversion rate");
                     }
+
+                    if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Fetched from fallback", GetType());
                 }
+            } 
+            else
+            {
+                if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Fetched from API", GetType());
             }
 
             var content = response.Content.ReadAsStringAsync().Result;
@@ -213,6 +224,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             {
                 return null;
             }
+
+            if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency, GetType());
 
             try
             {
@@ -326,8 +339,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 if (expression[i] >= '0' && expression[i] <= '9')
                 {
                     StringBuilder sbuf = new StringBuilder();
-                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression[i] == '.' || expression[i] == ',' || expression[i] == ' ')) {
-                        if (expression[i] != ' ')
+                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression[i] == '.' || expression[i] == ',' || char.IsWhiteSpace(expression[i]))) {
+                        if (!char.IsWhiteSpace(expression[i]))
                             sbuf.Append(expression[i]);
                         i++;
                     }
@@ -413,6 +426,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 conversionTasks.Add((index++, fromCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, fromCurrency, toCurrency))));
             }
 
+            if (EnableLog) Log.Info("Found " + conversionTasks.Count + " conversions", GetType());
+
             var groupedTasks = conversionTasks.GroupBy(t => t.fromCurrency);
 
             var results = new Result?[conversionTasks.Count];
@@ -431,7 +446,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private List<Result> ParseQuery(string search, bool isGlobal)
         {
-            var match = Regex.Match(search.Trim(), @"^\s*(?:(?:(?<amount>[0-9.,+\-*/ \(\)]+)\s*(?<from>\w*))|(?:(?<from>[a-zA-Z]*)\s*(?<amount>[0-9.,+\-*/ \(\)]+)))\s*(?:to|in)?\s*(?<to>\w*)\s*$");
+            var match = Regex.Match(search.Trim(), @"^\s*(?:(?:(?<amount>[0-9.,+\-*/\s\(\)]+)\s*(?<from>\w*))|(?:(?<from>[a-zA-Z]*)\s*(?<amount>[0-9.,+\-*/\s\(\)]+)))\s*(?:to|in)?\s*(?<to>\w*)\s*$");
 
             if (!match.Success)
             {
@@ -442,7 +457,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             try
             {
                 CultureInfo culture = CultureInfo.CurrentCulture;
+                if (EnableLog) Log.Info("Converting the expression to number: " + match.Groups["amount"].Value.Replace(GetNumberFormatInfo().NumberGroupSeparator, ""), GetType());
                 amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(GetNumberFormatInfo().NumberGroupSeparator, ""));
+                if (EnableLog) Log.Info("Converted number is: " + amountToConvert, GetType());
             }
             catch (Exception)
             {
@@ -457,8 +474,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 };
             }
 
-            string fromCurrency = match.Groups["from"].Value;
-            string toCurrency = string.IsNullOrEmpty(match.Groups["to"].Value) ? "" : match.Groups["to"].Value;
+            string fromCurrency = match.Groups["from"].Value.Trim().ToLower();
+            string toCurrency = string.IsNullOrEmpty(match.Groups["to"].Value.Trim()) ? "" : match.Groups["to"].Value.Trim().ToLower();
+            if (EnableLog) Log.Info("from: " +  fromCurrency + " and to: " + toCurrency, GetType());
 
             return GetConversionResults(isGlobal, amountToConvert, fromCurrency, toCurrency);
         }
@@ -487,6 +505,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             {
                 return new List<Result>();
             }
+
+            if (EnableLog) Log.Info("Parsing the input: " + query.Search, GetType());
 
             List<Result> results = ParseQuery(query.Search, string.IsNullOrEmpty(query.ActionKeyword)).Where(x => x != null).ToList();
 
