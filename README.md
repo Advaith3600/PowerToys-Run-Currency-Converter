@@ -13,6 +13,15 @@ PowerToys Run plugin which will convert real and crypto currencies.
 
 ```
 $$ 100 inr to usd
+$$ eur 100 in usd
+
+$$ $100
+$$ 100R$
+$$ 100€
+$$ 100₽
+$$ ₹100
+$$ $100 to eur
+$$ 100$ to euro
 ```
 
 ### Changing / Removing prefix
@@ -38,7 +47,7 @@ To set up aliasing, follow these steps:
 
 Please note that when creating aliases, ensure that the alias key does **not** contain any numbers or spaces and is in lowercase.
 
-Once you have set up the aliases, you can use them in your currency conversions. For example, instead of typing `$$ 100 usd to eur`, you can simply type `$$ 100 dollar to eur`.
+Once you have set up the aliases, you can use them in your currency conversions. For example, instead of typing `$$ 100 usd to eur`, you can simply type `$$ 100 dollar to euro`.
 
 If you are getting an error saying the alias file is not found, try closing PowerToys and opening it again. If the issue persists, you may need to download a newer version of the Currency Converter plugin and reinstall it.
 
@@ -71,7 +80,7 @@ The plugin supports two modes of output:
 1. Short Text: The output will only contain the target currency.
 2. Full Text: The output will contain both the source and target currencies.
 
-You can adjust the precision value in the settings. This will determine the number of decimal points to be displayed. The plugin outputs values using dynamic precision. This means that if a value is less than 1, the number of non-zero decimals displayed will be exactly as specified in the settings.
+The plugin outputs values using dynamic precision. This means that if a value is less than 1, the number of non-zero decimals displayed will be exactly as the system configuration.
 
 ![Screenshot](screenshots/screenshot5.png)
 

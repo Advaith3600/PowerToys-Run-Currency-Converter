@@ -30,7 +30,6 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private bool _showWarningsInGlobal;
         private int _conversionDirection;
         private int _outputStyle;
-        private int _outputPrecision;
         private int _decimalSeparator;
         private string _localCurrency;
         private string[] _currencies;
@@ -78,21 +77,13 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     new KeyValuePair<string, string>("Short Text", "0"),
                     new KeyValuePair<string, string>("Full Text", "1"),
                 ],
-                ComboBoxValue = 0,
-            },
-            new PluginAdditionalOption()
-            {
-                Key = "ConversionOutputPrecision",
-                DisplayLabel = "Conversion Output Precision",
-                DisplayDescription = "Control the amount of decimal points shown on the output",
-                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Numberbox,
-                NumberValue = 2,
+                ComboBoxValue = 1,
             },
             new PluginAdditionalOption()
             {
                 Key = "QuickConversionDirection",
                 DisplayLabel = "Quick Conversion Direction",
-                DisplayDescription = "Set in which direction you want to convert first.",
+                DisplayDescription = "Set the sort order for the quick conversion output",
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
                 ComboBoxItems =
                 [
@@ -105,14 +96,14 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             {
                 Key = "QuickConversionLocalCurrency",
                 DisplayLabel = "Quick Conversion Local Currency",
-                DisplayDescription = "Set your local currency.",
+                DisplayDescription = "Set your local currency for quick conversion",
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
                 TextValue = (new RegionInfo(CultureInfo.CurrentCulture.Name)).ISOCurrencySymbol,
             },
             new PluginAdditionalOption()
             {
                 Key = "QuickConversionCurrencies",
-                DisplayLabel = "Currencies for quick conversion",
+                DisplayLabel = "Quick Conversion Currencies",
                 DisplayDescription = "Add currencies comma separated. eg: USD, EUR, BTC",
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
                 TextValue = "USD",
@@ -127,7 +118,6 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             _decimalSeparator = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "DecimalSeparator")?.ComboBoxValue ?? 0;
             _conversionDirection = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionDirection")?.ComboBoxValue ?? 0;
             _outputStyle = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputStyle")?.ComboBoxValue ?? 0;
-            _outputPrecision = (int)(settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputPrecision")?.NumberValue ?? 2);
 
             var regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
             var localCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency")?.TextValue ?? "";
@@ -265,7 +255,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private (double ConvertedAmount, int Precision) CalculateConvertedAmount(double amountToConvert, double conversionRate)
         {
-            int precision = _outputPrecision;
+            int precision = CultureInfo.CurrentCulture.NumberFormat.CurrencyDecimalDigits;
             double rawConvertedAmount = Math.Abs(amountToConvert * conversionRate);
             double convertedAmount = Math.Round(rawConvertedAmount, precision);
 
@@ -276,7 +266,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 if (decimalPointIndex != -1)
                 {
                     int numberOfZeros = rawStr.Substring(decimalPointIndex + 1).TakeWhile(c => c == '0').Count();
-                    precision = numberOfZeros + _outputPrecision;
+                    precision += numberOfZeros;
                     convertedAmount = Math.Round(rawConvertedAmount, precision);
                 }
             }
@@ -311,12 +301,12 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             switch (_decimalSeparator)
             {
                 case 1:
-                    nfi.NumberDecimalSeparator = ".";
-                    nfi.NumberGroupSeparator = ",";
+                    nfi.CurrencyDecimalSeparator = ".";
+                    nfi.CurrencyGroupSeparator = ",";
                     break;
                 case 2:
-                    nfi.NumberDecimalSeparator = ",";
-                    nfi.NumberGroupSeparator = ".";
+                    nfi.CurrencyDecimalSeparator = ",";
+                    nfi.CurrencyGroupSeparator = ".";
                     break;
                 default:
                     nfi = CultureInfo.CurrentCulture.NumberFormat;
@@ -331,6 +321,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             Stack<double> values = new Stack<double>();
             Stack<char> ops = new Stack<char>();
 
+            NumberFormatInfo formatter = GetNumberFormatInfo();
+            string separator = formatter.CurrencyDecimalSeparator;
+
             for (int i = 0; i < expression.Length; i++)
             {
                 if (expression[i] == ' ')
@@ -339,13 +332,13 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 if (expression[i] >= '0' && expression[i] <= '9')
                 {
                     StringBuilder sbuf = new StringBuilder();
-                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression[i] == '.' || expression[i] == ',' || char.IsWhiteSpace(expression[i]))) {
+                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression.Substring(i, separator.Length) == separator || char.IsWhiteSpace(expression[i]))) {
                         if (!char.IsWhiteSpace(expression[i]))
                             sbuf.Append(expression[i]);
-                        i++;
+                        i += expression.Substring(i, separator.Length) == separator ? separator.Length : 1;
                     }
 
-                    values.Push(double.Parse(sbuf.ToString(), GetNumberFormatInfo()));
+                    values.Push(double.Parse(sbuf.ToString(), NumberStyles.Currency, formatter));
                     i--;
                 }
 
@@ -446,7 +439,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private List<Result> ParseQuery(string search, bool isGlobal)
         {
-            var match = Regex.Match(search.Trim(), @"^\s*(?:(?:(?<amount>[0-9.,+\-*/\s\(\)]+)\s*(?<from>\w*))|(?:(?<from>[a-zA-Z]*)\s*(?<amount>[0-9.,+\-*/\s\(\)]+)))\s*(?:to|in)?\s*(?<to>\w*)\s*$");
+            var match = Regex.Match(search.Trim(), @"^\s*(?:(?:(?<amount>[\d.,+\-*/\s\(\)]+)\s*(?<from>[\p{L}\p{Sc}_]*))|(?:(?<from>[\p{L}\p{Sc}_]*)\s*(?<amount>[\d.,+\-*/\s\(\)]+)))\s*(?:to|in)?\s*(?<to>[\p{L}\p{Sc}_]*)\s*$");
 
             if (!match.Success)
             {
@@ -457,8 +450,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             try
             {
                 CultureInfo culture = CultureInfo.CurrentCulture;
-                if (EnableLog) Log.Info("Converting the expression to number: " + match.Groups["amount"].Value.Replace(GetNumberFormatInfo().NumberGroupSeparator, ""), GetType());
-                amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(GetNumberFormatInfo().NumberGroupSeparator, ""));
+                if (EnableLog) Log.Info("Converting the expression to number: " + match.Groups["amount"].Value.Replace(GetNumberFormatInfo().CurrencyGroupSeparator, ""), GetType());
+                amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(GetNumberFormatInfo().CurrencyGroupSeparator, ""));
                 if (EnableLog) Log.Info("Converted number is: " + amountToConvert, GetType());
             }
             catch (Exception)
