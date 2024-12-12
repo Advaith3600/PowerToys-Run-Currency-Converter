@@ -556,7 +556,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             UpdateIconPath(_context.API.GetCurrentTheme());
 
             _aliasFileLocation = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "PowerToys",
                 "CurrencyConverter",
                 AliasFileName);
