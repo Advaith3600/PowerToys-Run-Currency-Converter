@@ -119,8 +119,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             _conversionDirection = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionDirection")?.ComboBoxValue ?? 0;
             _outputStyle = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputStyle")?.ComboBoxValue ?? 0;
 
-            var regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
-            var localCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency")?.TextValue ?? "";
+            RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
+            string localCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency")?.TextValue ?? "";
             _localCurrency = string.IsNullOrEmpty(localCurrency) ? regionInfo.ISOCurrencySymbol : localCurrency;
 
             _currencies = (settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionCurrencies")?.TextValue ?? "")
@@ -136,7 +136,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 cachedData.Timestamp > DateTime.Now.AddHours(-CacheExpirationHours))
             {
                 if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Found it from the cache", GetType());
-                if (cachedData.Rates.TryGetProperty(toCurrency, out var rate))
+                if (cachedData.Rates.TryGetProperty(toCurrency, out JsonElement rate))
                 {
                     return rate.GetDouble();
                 }
@@ -145,8 +145,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
             if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Trying to fetch", GetType());
 
-            var url = $"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{fromCurrency}.min.json";
-            var response = _httpClient.GetAsync(url).Result;
+            string url = $"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{fromCurrency}.min.json";
+            HttpResponseMessage response = _httpClient.GetAsync(url).Result;
 
             if (!response.IsSuccessStatusCode)
             {
@@ -156,7 +156,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 }
                 else
                 {
-                    var fallbackUrl = $"https://latest.currency-api.pages.dev/v1/currencies/{fromCurrency}.min.json";
+                    string fallbackUrl = $"https://latest.currency-api.pages.dev/v1/currencies/{fromCurrency}.min.json";
                     response = _httpClient.GetAsync(fallbackUrl).Result;
 
                     if (!response.IsSuccessStatusCode)
@@ -174,10 +174,10 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Fetched from API", GetType());
             }
 
-            var content = response.Content.ReadAsStringAsync().Result;
-            var element = JsonDocument.Parse(content).RootElement.GetProperty(fromCurrency);
+            string content = response.Content.ReadAsStringAsync().Result;
+            JsonElement element = JsonDocument.Parse(content).RootElement.GetProperty(fromCurrency);
 
-            if (!element.TryGetProperty(toCurrency, out var conversionRate))
+            if (!element.TryGetProperty(toCurrency, out JsonElement conversionRate))
             {
                 throw new Exception($"{toCurrency.ToUpper()} is not a valid currency");
             }
@@ -195,9 +195,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
             try
             {
-                var jsonData = File.ReadAllText(_aliasFileLocation);
-                using var doc = JsonDocument.Parse(jsonData);
-                return doc.RootElement.TryGetProperty(currency, out var value) ? value.GetString() : currency;
+                string jsonData = File.ReadAllText(_aliasFileLocation);
+                using JsonDocument doc = JsonDocument.Parse(jsonData);
+                return doc.RootElement.TryGetProperty(currency, out JsonElement value) ? value.GetString() : currency;
             }
             catch
             {
@@ -219,14 +219,14 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
             try
             {
-                var conversionRate = GetConversionRateSync(fromCurrency, toCurrency);
-                var (convertedAmount, precision) = CalculateConvertedAmount(amountToConvert, conversionRate);
+                double conversionRate = GetConversionRateSync(fromCurrency, toCurrency);
+                (double convertedAmount, int precision) = CalculateConvertedAmount(amountToConvert, conversionRate);
 
-                var fromFormatted = amountToConvert.ToString("N", CultureInfo.CurrentCulture);
-                var toFormatted = (amountToConvert < 0 ? convertedAmount * -1 : convertedAmount).ToString($"N{precision}", CultureInfo.CurrentCulture);
+                string fromFormatted = amountToConvert.ToString("N", CultureInfo.CurrentCulture);
+                string toFormatted = (amountToConvert < 0 ? convertedAmount * -1 : convertedAmount).ToString($"N{precision}", CultureInfo.CurrentCulture);
 
-                var compressedOutput = $"{toFormatted} {toCurrency.ToUpper()}";
-                var expandedOutput = $"{fromFormatted} {fromCurrency.ToUpper()} = {toFormatted} {toCurrency.ToUpper()}";
+                string compressedOutput = $"{toFormatted} {toCurrency.ToUpper()}";
+                string expandedOutput = $"{fromFormatted} {fromCurrency.ToUpper()} = {toFormatted} {toCurrency.ToUpper()}";
 
                 return new Result
                 {
@@ -332,7 +332,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 if (expression[i] >= '0' && expression[i] <= '9')
                 {
                     StringBuilder sbuf = new StringBuilder();
-                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression.Substring(i, separator.Length) == separator || char.IsWhiteSpace(expression[i]))) {
+                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression.Substring(i, separator.Length) == separator || char.IsWhiteSpace(expression[i]))) 
+                    {
                         if (!char.IsWhiteSpace(expression[i]))
                             sbuf.Append(expression[i]);
                         i += expression.Substring(i, separator.Length) == separator ? separator.Length : 1;
@@ -368,7 +369,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private List<Result> GetConversionResults(bool isGlobal, double amountToConvert, string fromCurrency, string toCurrency)
         {
-            var conversionTasks = new List<(int index, string fromCurrency, Task<Result?> task)>();
+            List<(int index, string fromCurrency, Task<Result?> task)> conversionTasks = [];
             int index = 0;
 
             if (string.IsNullOrEmpty(fromCurrency))
@@ -439,7 +440,17 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private List<Result> ParseQuery(string search, bool isGlobal)
         {
-            var match = Regex.Match(search.Trim(), @"^\s*(?:(?:(?<amount>[\d.,+\-*/\s\(\)]+)\s*(?<from>[\p{L}\p{Sc}_]*))|(?:(?<from>[\p{L}\p{Sc}_]*)\s*(?<amount>[\d.,+\-*/\s\(\)]+)))\s*(?:to|in)?\s*(?<to>[\p{L}\p{Sc}_]*)\s*$");
+            NumberFormatInfo formatter = GetNumberFormatInfo();
+            string decimalSeparator = Regex.Escape(formatter.CurrencyDecimalSeparator);
+            string groupSeparator = Regex.Escape(formatter.CurrencyGroupSeparator);
+
+            string amountPattern = $@"(?<amount>(?:\d+|\s+|{decimalSeparator}|{groupSeparator}|[+\-*/()])+)";
+            string fromPattern = @"(?<from>[\p{L}\p{Sc}_]*)";
+            string toPattern = @"(?<to>[\p{L}\p{Sc}_]*)";
+
+            string pattern = $@"^\s*(?:(?:{amountPattern}\s*{fromPattern})|(?:{fromPattern}\s*{amountPattern}))\s*(?:to|in)?\s*{toPattern}\s*$";
+            if (EnableLog) Log.Info("Using the regex expression: " + pattern, GetType());
+            Match match = Regex.Match(search.Trim(), pattern);
 
             if (!match.Success)
             {
@@ -450,8 +461,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             try
             {
                 CultureInfo culture = CultureInfo.CurrentCulture;
-                if (EnableLog) Log.Info("Converting the expression to number: " + match.Groups["amount"].Value.Replace(GetNumberFormatInfo().CurrencyGroupSeparator, ""), GetType());
-                amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(GetNumberFormatInfo().CurrencyGroupSeparator, ""));
+                if (EnableLog) Log.Info("Converting the expression to number: " + match.Groups["amount"].Value.Replace(formatter.CurrencyGroupSeparator, ""), GetType());
+                amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(formatter.CurrencyGroupSeparator, ""));
                 if (EnableLog) Log.Info("Converted number is: " + amountToConvert, GetType());
             }
             catch (Exception)
@@ -469,7 +480,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
             string fromCurrency = match.Groups["from"].Value.Trim().ToLower();
             string toCurrency = string.IsNullOrEmpty(match.Groups["to"].Value.Trim()) ? "" : match.Groups["to"].Value.Trim().ToLower();
-            if (EnableLog) Log.Info("from: " +  fromCurrency + " and to: " + toCurrency, GetType());
+            if (EnableLog) Log.Info("from: " + fromCurrency + " and to: " + toCurrency, GetType());
 
             return GetConversionResults(isGlobal, amountToConvert, fromCurrency, toCurrency);
         }
@@ -562,7 +573,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 AliasFileName);
             EnsureAliasFileExists();
 
-            var handler = new HttpClientHandler
+            HttpClientHandler handler = new HttpClientHandler
             {
                 UseDefaultCredentials = true,
                 PreAuthenticate = true
@@ -580,21 +591,21 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 string defaultJsonContent = ReadEmbeddedResource(DefaultAliasResourceName);
                 File.WriteAllText(_aliasFileLocation, defaultJsonContent);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Log the exception or handle it as appropriate
+                if (EnableLog) Log.Error($"An error occurred while creating the alias file at {_aliasFileLocation}. Exception: {ex.Message}", GetType());
             }
         }
 
         private string ReadEmbeddedResource(string resourceName)
         {
-            using var stream = typeof(Main).Assembly.GetManifestResourceStream(resourceName);
+            using Stream? stream = typeof(Main).Assembly.GetManifestResourceStream(resourceName);
             if (stream == null)
             {
                 throw new FileNotFoundException("Resource not found: " + resourceName);
             }
 
-            using var reader = new StreamReader(stream);
+            using StreamReader reader = new StreamReader(stream);
             return reader.ReadToEnd();
         }
 
