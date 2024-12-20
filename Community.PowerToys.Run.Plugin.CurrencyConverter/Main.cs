@@ -1,4 +1,5 @@
-﻿using ManagedCommon;
+﻿using Community.PowerToys.Run.Plugin.Update;
+using ManagedCommon;
 using Microsoft.PowerToys.Settings.UI.Library;
 using System.Collections.Concurrent;
 using System.Globalization;
@@ -8,12 +9,13 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
+using Wox.Infrastructure.Storage;
 using Wox.Plugin;
 using Wox.Plugin.Logger;
 
 namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {
-    public class Main : IPlugin, IContextMenu, ISettingProvider, IDisposable, IDelayedExecutionPlugin
+    public class Main : IPlugin, IContextMenu, ISettingProvider, IDisposable, IDelayedExecutionPlugin, ISavable
     {
         public static string PluginID => "EF1F634F20484459A3679B4DE7B07999";
         public string Name => "Currency Converter";
@@ -25,6 +27,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private bool _disposed;
         private readonly ConcurrentDictionary<string, (JsonElement Rates, DateTime Timestamp)> _conversionCache = new();
         private HttpClient _httpClient;
+        private PluginJsonStorage<Settings> _storage { get; }
+        private Settings _settings { get; }
+        private IPluginUpdateHandler _updater { get; }
 
         // Settings
         private bool _showWarningsInGlobal;
@@ -41,6 +46,17 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private const string AliasFileName = "alias.json";
         private const string DefaultAliasResourceName = "Community.PowerToys.Run.Plugin.CurrencyConverter.alias.default.json";
         private const string GithubReadmeURL = "https://github.com/Advaith3600/PowerToys-Run-Currency-Converter?tab=readme-ov-file#aliasing";
+
+        public Main()
+        {
+            _storage = new PluginJsonStorage<Settings>();
+            _settings = _storage.Load();
+
+            _updater = new PluginUpdateHandler(_settings.Update);
+            _updater.UpdateInstalling += OnUpdateInstalling;
+            _updater.UpdateInstalled += OnUpdateInstalled;
+            _updater.UpdateSkipped += OnUpdateSkipped;
+        }
 
         public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>
         {
@@ -128,7 +144,11 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 .Select(x => x.Trim())
                 .Where(x => !string.IsNullOrEmpty(x))
                 .ToArray();
+
+            _settings.SetAdditionalOptions(settings.AdditionalOptions);
         }
+
+        public void Save() => _storage.Save();
 
         private double GetConversionRateSync(string fromCurrency, string toCurrency)
         {
@@ -539,10 +559,17 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 }
             }
 
-            return results
+            results = results
                 .GroupBy(r => new { r.Title, r.SubTitle })
                 .Select(g => g.First())
                 .ToList();
+
+            if (_updater.IsUpdateAvailable())
+            {
+                results.InsertRange(0, _updater.GetResults());
+            }
+
+            return results;
         }
 
         private void ValidateJsonFormat(string jsonContent)
@@ -579,6 +606,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 PreAuthenticate = true
             };
             _httpClient = new HttpClient(handler);
+
+            _updater.Init(_context);
         }
 
         private void EnsureAliasFileExists()
@@ -611,7 +640,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public List<ContextMenuResult> LoadContextMenus(Result selectedResult)
         {
-            List<ContextMenuResult> results = [];
+            List<ContextMenuResult> results = _updater.GetContextMenuResults(selectedResult);
 
             if (selectedResult?.ContextData is Dictionary<string, string> contextData)
             {
@@ -692,7 +721,27 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
 
             _httpClient.Dispose();
+
+            _updater.Dispose();
+
             _disposed = true;
+        }
+        private void OnUpdateInstalling(object? sender, PluginUpdateEventArgs e)
+        {
+            Log.Info("UpdateInstalling: " + e.Version, GetType());
+        }
+
+        private void OnUpdateInstalled(object? sender, PluginUpdateEventArgs e)
+        {
+            Log.Info("UpdateInstalled: " + e.Version, GetType());
+            _context!.API.ShowNotification($"{Name} {e.Version}", "Update installed");
+        }
+
+        private void OnUpdateSkipped(object? sender, PluginUpdateEventArgs e)
+        {
+            Log.Info("UpdateSkipped: " + e.Version, GetType());
+            Save();
+            _context?.API.ChangeQuery(_context.CurrentPluginMetadata.ActionKeyword, true);
         }
     }
 }

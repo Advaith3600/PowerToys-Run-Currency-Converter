@@ -1,3 +1,5 @@
+$ErrorActionPreference = "Stop"
+
 $jsonFilePath = "$PSScriptRoot\..\Community.PowerToys.Run.Plugin.CurrencyConverter\plugin.json"
 $jsonContent = Get-Content -Path $jsonFilePath -Raw | ConvertFrom-Json
 $version = $jsonContent.version
