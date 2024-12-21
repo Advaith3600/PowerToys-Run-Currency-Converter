@@ -31,13 +31,6 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private Settings _settings { get; }
         private IPluginUpdateHandler _updater { get; }
 
-        // Settings
-        private bool _showWarningsInGlobal;
-        private int _conversionDirection;
-        private int _outputStyle;
-        private int _decimalSeparator;
-        private string _localCurrency;
-        private string[] _currencies;
         private string _aliasFileLocation;
 
         // Constants
@@ -58,95 +51,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             _updater.UpdateSkipped += OnUpdateSkipped;
         }
 
-        public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>
-        {
-            new PluginAdditionalOption
-            {
-                Key = "ShowWarningsInGlobal",
-                DisplayLabel = "Show warnings in global results",
-                DisplayDescription = "Warnings from the plugin are suppressed when the \"Include in global result\" is checked",
-                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Checkbox,
-                Value = false,
-            },
-            new PluginAdditionalOption()
-            {
-                Key = "DecimalSeparator",
-                DisplayLabel = "Decimal format separator",
-                DisplayDescription = "Change between dots and commas for decimal separation",
-                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
-                ComboBoxItems =
-                [
-                    new KeyValuePair<string, string>("Use system default", "0"),
-                    new KeyValuePair<string, string>("Always use dots for decimals", "1"),
-                    new KeyValuePair<string, string>("Always use commas for decimals", "2"),
-                ],
-                ComboBoxValue = 0,
-            },
-            new PluginAdditionalOption()
-            {
-                Key = "ConversionOutputStyle",
-                DisplayLabel = "Conversion Output Style",
-                DisplayDescription = "Full Text: 2 USD = 1.86 EUR, Short Text: 1.86 EUR",
-                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
-                ComboBoxItems =
-                [
-                    new KeyValuePair<string, string>("Short Text", "0"),
-                    new KeyValuePair<string, string>("Full Text", "1"),
-                ],
-                ComboBoxValue = 1,
-            },
-            new PluginAdditionalOption()
-            {
-                Key = "QuickConversionDirection",
-                DisplayLabel = "Quick Conversion Direction",
-                DisplayDescription = "Set the sort order for the quick conversion output",
-                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
-                ComboBoxItems =
-                [
-                    new KeyValuePair<string, string>("Local currency to other currencies", "0"),
-                    new KeyValuePair<string, string>("Other currencies to local currency", "1"),
-                ],
-                ComboBoxValue = 0,
-            },
-            new PluginAdditionalOption()
-            {
-                Key = "QuickConversionLocalCurrency",
-                DisplayLabel = "Quick Conversion Local Currency",
-                DisplayDescription = "Set your local currency for quick conversion",
-                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
-                TextValue = (new RegionInfo(CultureInfo.CurrentCulture.Name)).ISOCurrencySymbol,
-            },
-            new PluginAdditionalOption()
-            {
-                Key = "QuickConversionCurrencies",
-                DisplayLabel = "Quick Conversion Currencies",
-                DisplayDescription = "Add currencies comma separated. eg: USD, EUR, BTC",
-                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
-                TextValue = "USD",
-            },
-        };
+        public IEnumerable<PluginAdditionalOption> AdditionalOptions => _settings.GetAdditionalOptions();
 
-        public void UpdateSettings(PowerLauncherPluginSettings settings)
-        {
-            if (settings?.AdditionalOptions == null) return;
-
-            _showWarningsInGlobal = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ShowWarningsInGlobal")?.Value ?? false;
-            _decimalSeparator = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "DecimalSeparator")?.ComboBoxValue ?? 0;
-            _conversionDirection = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionDirection")?.ComboBoxValue ?? 0;
-            _outputStyle = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ConversionOutputStyle")?.ComboBoxValue ?? 0;
-
-            RegionInfo regionInfo = new RegionInfo(CultureInfo.CurrentCulture.Name);
-            string localCurrency = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionLocalCurrency")?.TextValue ?? "";
-            _localCurrency = string.IsNullOrEmpty(localCurrency) ? regionInfo.ISOCurrencySymbol : localCurrency;
-
-            _currencies = (settings.AdditionalOptions.FirstOrDefault(x => x.Key == "QuickConversionCurrencies")?.TextValue ?? "")
-                .Split(',')
-                .Select(x => x.Trim())
-                .Where(x => !string.IsNullOrEmpty(x))
-                .ToArray();
-
-            _settings.SetAdditionalOptions(settings.AdditionalOptions);
-        }
+        public void UpdateSettings(PowerLauncherPluginSettings settings) => _settings.SetAdditionalOptions(settings.AdditionalOptions);
 
         public void Save() => _storage.Save();
 
@@ -188,7 +95,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
                     if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Fetched from fallback", GetType());
                 }
-            } 
+            }
             else
             {
                 if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Fetched from API", GetType());
@@ -250,7 +157,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
                 return new Result
                 {
-                    Title = _outputStyle == 0 ? compressedOutput : expandedOutput,
+                    Title = _settings.OutputStyle == 0 ? compressedOutput : expandedOutput,
                     SubTitle = $"Currency conversion from {fromCurrency.ToUpper()} to {toCurrency.ToUpper()}",
                     QueryTextDisplay = compressedOutput,
                     IcoPath = _iconPath,
@@ -262,7 +169,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             catch (Exception e)
             {
                 const string link = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json";
-                return isGlobal && !_showWarningsInGlobal ? null : new Result
+                return isGlobal && !_settings.ShowWarningsInGlobal ? null : new Result
                 {
                     Title = e.Message,
                     SubTitle = "Press enter or click to open the currencies list",
@@ -294,7 +201,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             return (convertedAmount, precision);
         }
 
-        public bool HasPrecedence(char op1, char op2)
+        private bool HasPrecedence(char op1, char op2)
         {
             if (op2 == '(' || op2 == ')')
                 return false;
@@ -304,7 +211,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 return true;
         }
 
-        public double ApplyOp(char op, double b, double a) => op switch
+        private double ApplyOp(char op, double b, double a) => op switch
         {
             '+' => a + b,
             '-' => a - b,
@@ -314,11 +221,11 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             _ => throw new ArgumentException("Invalid operator", nameof(op))
         };
 
-        public NumberFormatInfo GetNumberFormatInfo()
+        private NumberFormatInfo GetNumberFormatInfo()
         {
             NumberFormatInfo nfi = new NumberFormatInfo();
 
-            switch (_decimalSeparator)
+            switch (_settings.DecimalSeparator)
             {
                 case 1:
                     nfi.CurrencyDecimalSeparator = ".";
@@ -336,7 +243,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             return nfi;
         }
 
-        public double Evaluate(string expression)
+        private double Evaluate(string expression)
         {
             Stack<double> values = new Stack<double>();
             Stack<char> ops = new Stack<char>();
@@ -352,7 +259,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 if (expression[i] >= '0' && expression[i] <= '9')
                 {
                     StringBuilder sbuf = new StringBuilder();
-                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression.Substring(i, separator.Length) == separator || char.IsWhiteSpace(expression[i]))) 
+                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression.Substring(i, separator.Length) == separator || char.IsWhiteSpace(expression[i])))
                     {
                         if (!char.IsWhiteSpace(expression[i]))
                             sbuf.Append(expression[i]);
@@ -394,45 +301,45 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
             if (string.IsNullOrEmpty(fromCurrency))
             {
-                foreach (string currency in _currencies)
+                foreach (string currency in _settings.Currencies)
                 {
-                    if (_conversionDirection == 0)
+                    if (_settings.ConversionDirection == 0)
                     {
-                        conversionTasks.Add((index++, _localCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, _localCurrency, currency))));
+                        conversionTasks.Add((index++, _settings.LocalCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, _settings.LocalCurrency, currency))));
                     }
                     else
                     {
-                        conversionTasks.Add((index++, currency, Task.Run(() => GetConversion(isGlobal, amountToConvert, currency, _localCurrency))));
+                        conversionTasks.Add((index++, currency, Task.Run(() => GetConversion(isGlobal, amountToConvert, currency, _settings.LocalCurrency))));
                     }
                 }
 
-                foreach (string currency in _currencies)
+                foreach (string currency in _settings.Currencies)
                 {
-                    if (_conversionDirection == 0)
+                    if (_settings.ConversionDirection == 0)
                     {
-                        conversionTasks.Add((index++, currency, Task.Run(() => GetConversion(isGlobal, amountToConvert, currency, _localCurrency))));
+                        conversionTasks.Add((index++, currency, Task.Run(() => GetConversion(isGlobal, amountToConvert, currency, _settings.LocalCurrency))));
                     }
                     else
                     {
-                        conversionTasks.Add((index++, _localCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, _localCurrency, currency))));
+                        conversionTasks.Add((index++, _settings.LocalCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, _settings.LocalCurrency, currency))));
                     }
                 }
             }
             else if (string.IsNullOrEmpty(toCurrency))
             {
-                if (_conversionDirection == 0)
+                if (_settings.ConversionDirection == 0)
                 {
-                    conversionTasks.Add((index++, fromCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, fromCurrency, _localCurrency))));
+                    conversionTasks.Add((index++, fromCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, fromCurrency, _settings.LocalCurrency))));
                 }
 
-                foreach (string currency in _currencies)
+                foreach (string currency in _settings.Currencies)
                 {
                     conversionTasks.Add((index++, fromCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, fromCurrency, currency))));
                 }
 
-                if (_conversionDirection == 1)
+                if (_settings.ConversionDirection == 1)
                 {
-                    conversionTasks.Add((index++, fromCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, fromCurrency, _localCurrency))));
+                    conversionTasks.Add((index++, fromCurrency, Task.Run(() => GetConversion(isGlobal, amountToConvert, fromCurrency, _settings.LocalCurrency))));
                 }
             }
             else
@@ -487,7 +394,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
             catch (Exception)
             {
-                return isGlobal && !_showWarningsInGlobal ? new List<Result>() : new List<Result>
+                return isGlobal && !_settings.ShowWarningsInGlobal ? new List<Result>() : new List<Result>
                 {
                     new Result
                     {
@@ -507,20 +414,19 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public List<Result> Query(Query query)
         {
-            return string.IsNullOrEmpty(query.ActionKeyword) || string.IsNullOrEmpty(query.Search.Trim())
-                ? new List<Result>()
-                : new List<Result>
-                {
-                    new Result
-                    {
-                        Title = "Loading...",
-                        SubTitle = "Please open an issue if needed.",
-                        IcoPath = _iconPath,
-                        ContextData = new Dictionary<string, string> { { "externalLink", GithubReadmeURL } },
-                        Action = _ => PerformAction("externalLink", GithubReadmeURL)
-                    }
-                };
+            List<Result> results = _updater.GetResults();
 
+            if (!(string.IsNullOrEmpty(query.ActionKeyword) || string.IsNullOrEmpty(query.Search.Trim())))
+                results.Add(new Result
+                {
+                    Title = "Loading...",
+                    SubTitle = "Please open an issue if needed.",
+                    IcoPath = _iconPath,
+                    ContextData = new Dictionary<string, string> { { "externalLink", GithubReadmeURL } },
+                    Action = _ => PerformAction("externalLink", GithubReadmeURL)
+                });
+
+            return results;
         }
 
         public List<Result> Query(Query query, bool isDelayedExecution)
