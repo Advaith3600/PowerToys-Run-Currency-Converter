@@ -8,12 +8,12 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
     {
         public PluginUpdateSettings Update { get; set; } = new PluginUpdateSettings { ResultScore = 100 };
 
-        protected internal bool ShowWarningsInGlobal { get; set; }
-        protected internal int OutputStyle { get; set; }
-        protected internal int DecimalSeparator { get; set; }
-        protected internal int ConversionDirection { get; set; }
-        protected internal string LocalCurrency { get; set; }
-        protected internal string[] Currencies { get; set; }
+        public bool ShowWarningsInGlobal { get; set; }
+        public int OutputStyle { get; set; }
+        public int DecimalSeparator { get; set; }
+        public int ConversionDirection { get; set; }
+        public string LocalCurrency { get; set; }
+        public string[] Currencies { get; set; }
 
         protected internal IEnumerable<PluginAdditionalOption> GetAdditionalOptions()
         {
@@ -26,7 +26,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     DisplayLabel = "Show warnings in global results",
                     DisplayDescription = "Warnings from the plugin are suppressed when the \"Include in global result\" is checked",
                     PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Checkbox,
-                    Value = false,
+                    Value = ShowWarningsInGlobal,
                 },
                 new()
                 {
@@ -40,7 +40,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                             new KeyValuePair<string, string>("Always use dots for decimals", "1"),
                             new KeyValuePair<string, string>("Always use commas for decimals", "2"),
                         ],
-                    ComboBoxValue = 0,
+                    ComboBoxValue = DecimalSeparator,
                 },
                 new()
                 {
@@ -53,7 +53,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                             new KeyValuePair<string, string>("Short Text", "0"),
                             new KeyValuePair<string, string>("Full Text", "1"),
                         ],
-                    ComboBoxValue = 1,
+                    ComboBoxValue = OutputStyle,
                 },
                 new()
                 {
@@ -66,7 +66,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                             new KeyValuePair<string, string>("Local currency to other currencies", "0"),
                             new KeyValuePair<string, string>("Other currencies to local currency", "1"),
                         ],
-                    ComboBoxValue = 0,
+                    ComboBoxValue = ConversionDirection,
                 },
                 new()
                 {
@@ -74,7 +74,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     DisplayLabel = "Quick Conversion Local Currency",
                     DisplayDescription = "Set your local currency for quick conversion",
                     PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
-                    TextValue = (new RegionInfo(CultureInfo.CurrentCulture.Name)).ISOCurrencySymbol,
+                    TextValue = LocalCurrency,
                 },
                 new()
                 {
@@ -82,7 +82,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     DisplayLabel = "Quick Conversion Currencies",
                     DisplayDescription = "Add currencies comma separated. eg: USD, EUR, BTC",
                     PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
-                    TextValue = "USD",
+                    TextValue = String.Join(", ", Currencies),
                 }
             ]);
 
@@ -106,7 +106,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 .Split(',')
                 .Select(x => x.Trim())
                 .Where(x => !string.IsNullOrEmpty(x))
-            .ToArray();
+                .ToArray();
 
             Update.SetAdditionalOptions(additionalOptions);
         }

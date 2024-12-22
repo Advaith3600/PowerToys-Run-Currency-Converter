@@ -40,7 +40,7 @@ To make currency conversions more convenient, you can use aliasing to assign cus
 
 To set up aliasing, follow these steps:
 
-1. Locate the configuration file `alias.json` in `Documents/PowerToys/CurrencyConverter`.
+1. Locate the configuration file `alias.json` in `%LOCALAPPDATA%\Microsoft\PowerToys\PowerToys Run\Settings\Plugins\Community.PowerToys.Run.Plugin.CurrencyConverter`.
 2. Open the `alias.json` file in a text editor.
 3. Add an entry for each alias you want to create. Each entry should have the format `"alias": "currency_code"`. For example, to alias "dollar" to "usd", add the following entry: `"dollar": "usd"`.
 4. Save the `alias.json` file.

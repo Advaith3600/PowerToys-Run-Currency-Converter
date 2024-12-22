@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO;
 using System.Net.Http;
-using System.Text;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
@@ -201,26 +201,6 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             return (convertedAmount, precision);
         }
 
-        private bool HasPrecedence(char op1, char op2)
-        {
-            if (op2 == '(' || op2 == ')')
-                return false;
-            if ((op1 == '*' || op1 == '/') && (op2 == '+' || op2 == '-'))
-                return false;
-            else
-                return true;
-        }
-
-        private double ApplyOp(char op, double b, double a) => op switch
-        {
-            '+' => a + b,
-            '-' => a - b,
-            '*' => a * b,
-            '/' when b != 0 => a / b,
-            '/' => throw new DivideByZeroException("Cannot divide by zero"),
-            _ => throw new ArgumentException("Invalid operator", nameof(op))
-        };
-
         private NumberFormatInfo GetNumberFormatInfo()
         {
             NumberFormatInfo nfi = new NumberFormatInfo();
@@ -241,57 +221,6 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
 
             return nfi;
-        }
-
-        private double Evaluate(string expression)
-        {
-            Stack<double> values = new Stack<double>();
-            Stack<char> ops = new Stack<char>();
-
-            NumberFormatInfo formatter = GetNumberFormatInfo();
-            string separator = formatter.CurrencyDecimalSeparator;
-
-            for (int i = 0; i < expression.Length; i++)
-            {
-                if (expression[i] == ' ')
-                    continue;
-
-                if (expression[i] >= '0' && expression[i] <= '9')
-                {
-                    StringBuilder sbuf = new StringBuilder();
-                    while (i < expression.Length && ((expression[i] >= '0' && expression[i] <= '9') || expression.Substring(i, separator.Length) == separator || char.IsWhiteSpace(expression[i])))
-                    {
-                        if (!char.IsWhiteSpace(expression[i]))
-                            sbuf.Append(expression[i]);
-                        i += expression.Substring(i, separator.Length) == separator ? separator.Length : 1;
-                    }
-
-                    values.Push(double.Parse(sbuf.ToString(), NumberStyles.Currency, formatter));
-                    i--;
-                }
-
-                else if (expression[i] == '(')
-                    ops.Push(expression[i]);
-
-                else if (expression[i] == ')')
-                {
-                    while (ops.Count > 0 && ops.Peek() != '(')
-                        values.Push(ApplyOp(ops.Pop(), values.Pop(), values.Pop()));
-                    ops.Pop();
-                }
-
-                else if (expression[i] == '+' || expression[i] == '-' || expression[i] == '*' || expression[i] == '/')
-                {
-                    while (ops.Count > 0 && HasPrecedence(expression[i], ops.Peek()))
-                        values.Push(ApplyOp(ops.Pop(), values.Pop(), values.Pop()));
-                    ops.Push(expression[i]);
-                }
-            }
-
-            while (ops.Count > 0)
-                values.Push(ApplyOp(ops.Pop(), values.Pop(), values.Pop()));
-
-            return values.Pop();
         }
 
         private List<Result> GetConversionResults(bool isGlobal, double amountToConvert, string fromCurrency, string toCurrency)
@@ -389,7 +318,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             {
                 CultureInfo culture = CultureInfo.CurrentCulture;
                 if (EnableLog) Log.Info("Converting the expression to number: " + match.Groups["amount"].Value.Replace(formatter.CurrencyGroupSeparator, ""), GetType());
-                amountToConvert = Evaluate(match.Groups["amount"].Value.Replace(formatter.CurrencyGroupSeparator, ""));
+                amountToConvert = CalculateEngine.Evaluate(match.Groups["amount"].Value.Replace(formatter.CurrencyGroupSeparator, ""), GetNumberFormatInfo());
                 if (EnableLog) Log.Info("Converted number is: " + amountToConvert, GetType());
             }
             catch (Exception)
@@ -500,9 +429,10 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             UpdateIconPath(_context.API.GetCurrentTheme());
 
             _aliasFileLocation = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "PowerToys",
-                "CurrencyConverter",
+                Constant.DataDirectory,
+                "Settings",
+                "Plugins",
+                 Assembly.GetExecutingAssembly().GetName().Name,
                 AliasFileName);
             EnsureAliasFileExists();
 
