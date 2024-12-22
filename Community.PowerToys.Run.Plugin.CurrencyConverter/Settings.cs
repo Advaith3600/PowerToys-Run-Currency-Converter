@@ -8,12 +8,12 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
     {
         public PluginUpdateSettings Update { get; set; } = new PluginUpdateSettings { ResultScore = 100 };
 
-        public bool ShowWarningsInGlobal { get; set; }
-        public int OutputStyle { get; set; }
-        public int DecimalSeparator { get; set; }
-        public int ConversionDirection { get; set; }
-        public string LocalCurrency { get; set; }
-        public string[] Currencies { get; set; }
+        public bool ShowWarningsInGlobal { get; set; } = false;
+        public int OutputStyle { get; set; } = 1;
+        public int DecimalSeparator { get; set; } = 0;
+        public int ConversionDirection { get; set; } = 0;
+        public string LocalCurrency { get; set; } = "";
+        public string[] Currencies { get; set; } = [];
 
         protected internal IEnumerable<PluginAdditionalOption> GetAdditionalOptions()
         {
@@ -82,7 +82,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     DisplayLabel = "Quick Conversion Currencies",
                     DisplayDescription = "Add currencies comma separated. eg: USD, EUR, BTC",
                     PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox,
-                    TextValue = String.Join(", ", Currencies),
+                    TextValue = String.Join(", ", Currencies ?? [""]),
                 }
             ]);
 
