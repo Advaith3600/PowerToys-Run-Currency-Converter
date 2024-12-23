@@ -1,14 +1,10 @@
 $ErrorActionPreference = "Stop"
 
-$jsonFilePath = "$PSScriptRoot\..\Community.PowerToys.Run.Plugin.CurrencyConverter\plugin.json"
-$jsonContent = Get-Content -Path $jsonFilePath -Raw | ConvertFrom-Json
-$version = $jsonContent.version
-
-$zipX64 = "..\bin\CurrencyConverter-$version-x64.zip"
-$zipARM64 = "..\bin\CurrencyConverter-$version-ARM64.zip"
-$tempDirX64 = "..\bin\temp\CurrencyConverter-$version-x64"
-$tempDirARM64 = "..\bin\temp\CurrencyConverter-$version-ARM64"
 $outputDir = "..\bin"
+$zipX64 = "$outputDir\CurrencyConverter-$version-x64.zip"
+$zipARM64 = "$outputDir\CurrencyConverter-$version-ARM64.zip"
+$tempDirX64 = "$outputDir\temp\CurrencyConverter-$version-x64"
+$tempDirARM64 = "$outputDir\temp\CurrencyConverter-$version-ARM64"
 
 # Function to extract zip files
 function Extract-Zip {
@@ -45,8 +41,11 @@ Build-Installer -platform "x64" -targetDir "$tempDirX64\CurrencyConverter"
 Build-Installer -platform "ARM64" -targetDir "$tempDirARM64\CurrencyConverter"
 
 # Check if the installers were created successfully
-$x64Exists = Test-Path "$outputDir\CurrencyConverter-$version-x64.exe"
-$arm64Exists = Test-Path "$outputDir\CurrencyConverter-$version-ARM64.exe"
+$x64 = "$outputDir\CurrencyConverter-$version-x64.exe"
+$arm64 = "$outputDir\CurrencyConverter-$version-ARM64.exe"
+
+$x64Exists = Test-Path $x64
+$arm64Exists = Test-Path $arm64
 
 if ($x64Exists -and $arm64Exists) {
     Write-Output "Installers created successfully."
@@ -57,3 +56,5 @@ if ($x64Exists -and $arm64Exists) {
 # Clean up temporary directories
 Remove-Item -Recurse -Force $tempDirX64
 Remove-Item -Recurse -Force $tempDirARM64
+
+./sha256.ps1
