@@ -343,7 +343,12 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public List<Result> Query(Query query)
         {
-            List<Result> results = _updater.GetResults();
+            List<Result> results = [];
+
+            if (_updater.IsUpdateAvailable())
+            {
+                results.AddRange(_updater.GetResults());
+            }
 
             if (!(string.IsNullOrEmpty(query.ActionKeyword) || string.IsNullOrEmpty(query.Search.Trim())))
                 results.Add(new Result
@@ -360,14 +365,17 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public List<Result> Query(Query query, bool isDelayedExecution)
         {
-            if (query.Search.Trim() is null || !isDelayedExecution)
+            List<Result> results = [];
+
+            if (_updater.IsUpdateAvailable())
             {
-                return new List<Result>();
+                results.AddRange(_updater.GetResults());
             }
 
-            if (EnableLog) Log.Info("Parsing the input: " + query.Search, GetType());
-
-            List<Result> results = ParseQuery(query.Search, string.IsNullOrEmpty(query.ActionKeyword)).Where(x => x != null).ToList();
+            if (query.Search.Trim() is null || !isDelayedExecution)
+            {
+                return results;
+            }
 
             if (!string.IsNullOrEmpty(query.ActionKeyword))
             {
@@ -394,17 +402,13 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 }
             }
 
-            results = results
+            if (EnableLog) Log.Info("Parsing the input: " + query.Search, GetType());
+            results.AddRange(ParseQuery(query.Search, string.IsNullOrEmpty(query.ActionKeyword)).Where(x => x != null).ToList());
+
+            return results
                 .GroupBy(r => new { r.Title, r.SubTitle })
                 .Select(g => g.First())
                 .ToList();
-
-            if (_updater.IsUpdateAvailable())
-            {
-                results.InsertRange(0, _updater.GetResults());
-            }
-
-            return results;
         }
 
         private void ValidateJsonFormat(string jsonContent)
