@@ -15,7 +15,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 return true;
         }
 
-        private static double ApplyOp(char op, double b, double a) => op switch
+        private static decimal ApplyOp(char op, decimal b, decimal a) => op switch
         {
             '+' => a + b,
             '-' => a - b,
@@ -25,9 +25,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             _ => throw new ArgumentException("Invalid operator", nameof(op))
         };
 
-        public static double Evaluate(string expression, NumberFormatInfo formatter)
+        public static decimal Evaluate(string expression, NumberFormatInfo formatter)
         {
-            Stack<double> values = new Stack<double>();
+            Stack<decimal> values = new Stack<decimal>();
             Stack<char> ops = new Stack<char>();
 
             string separator = formatter.CurrencyDecimalSeparator;
@@ -46,7 +46,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                         i += expression.Substring(i, separator.Length) == separator ? separator.Length : 1;
                     }
 
-                    values.Push(double.Parse(sbuf.ToString(), NumberStyles.Currency, formatter));
+                    values.Push(decimal.Parse(sbuf.ToString(), NumberStyles.Currency, formatter));
                     i--;
                 }
 

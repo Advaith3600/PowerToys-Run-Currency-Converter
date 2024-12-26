@@ -57,7 +57,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         public void Save() => _storage.Save();
 
-        private double GetConversionRateSync(string fromCurrency, string toCurrency)
+        private decimal GetConversionRateSync(string fromCurrency, string toCurrency)
         {
             if (_conversionCache.TryGetValue(fromCurrency, out var cachedData) &&
                 cachedData.Timestamp > DateTime.Now.AddHours(-CacheExpirationHours))
@@ -65,7 +65,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 if (EnableLog) Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Found it from the cache", GetType());
                 if (cachedData.Rates.TryGetProperty(toCurrency, out JsonElement rate))
                 {
-                    return rate.GetDouble();
+                    return rate.GetDecimal();
                 }
                 throw new Exception($"{toCurrency.ToUpper()} is not a valid currency");
             }
@@ -110,7 +110,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
 
             _conversionCache[fromCurrency] = (element, DateTime.Now);
-            return conversionRate.GetDouble();
+            return conversionRate.GetDecimal();
         }
 
         private string GetCurrencyFromAlias(string currency)
@@ -132,7 +132,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
         }
 
-        private Result? GetConversion(bool isGlobal, double amountToConvert, string fromCurrency, string toCurrency)
+        private Result? GetConversion(bool isGlobal, decimal amountToConvert, string fromCurrency, string toCurrency)
         {
             fromCurrency = GetCurrencyFromAlias(fromCurrency.ToLower());
             toCurrency = GetCurrencyFromAlias(toCurrency.ToLower());
@@ -146,8 +146,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
             try
             {
-                double conversionRate = GetConversionRateSync(fromCurrency, toCurrency);
-                (double convertedAmount, int precision) = CalculateConvertedAmount(amountToConvert, conversionRate);
+                decimal conversionRate = GetConversionRateSync(fromCurrency, toCurrency);
+                (decimal convertedAmount, int precision) = CalculateConvertedAmount(amountToConvert, conversionRate);
 
                 string fromFormatted = amountToConvert.ToString("N", CultureInfo.CurrentCulture);
                 string toFormatted = (amountToConvert < 0 ? convertedAmount * -1 : convertedAmount).ToString($"N{precision}", CultureInfo.CurrentCulture);
@@ -180,11 +180,11 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
         }
 
-        private (double ConvertedAmount, int Precision) CalculateConvertedAmount(double amountToConvert, double conversionRate)
+        private (decimal ConvertedAmount, int Precision) CalculateConvertedAmount(decimal amountToConvert, decimal conversionRate)
         {
             int precision = CultureInfo.CurrentCulture.NumberFormat.CurrencyDecimalDigits;
-            double rawConvertedAmount = Math.Abs(amountToConvert * conversionRate);
-            double convertedAmount = Math.Round(rawConvertedAmount, precision);
+            decimal rawConvertedAmount = Math.Abs(amountToConvert * conversionRate);
+            decimal convertedAmount = Math.Round(rawConvertedAmount, precision);
 
             if (rawConvertedAmount < 1)
             {
@@ -223,7 +223,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             return nfi;
         }
 
-        private List<Result> GetConversionResults(bool isGlobal, double amountToConvert, string fromCurrency, string toCurrency)
+        private List<Result> GetConversionResults(bool isGlobal, decimal amountToConvert, string fromCurrency, string toCurrency)
         {
             List<(int index, string fromCurrency, Task<Result?> task)> conversionTasks = [];
             int index = 0;
@@ -313,10 +313,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 return new List<Result>();
             }
 
-            double amountToConvert;
+            decimal amountToConvert;
             try
             {
-                CultureInfo culture = CultureInfo.CurrentCulture;
                 if (EnableLog) Log.Info("Converting the expression to number: " + match.Groups["amount"].Value.Replace(formatter.CurrencyGroupSeparator, ""), GetType());
                 amountToConvert = CalculateEngine.Evaluate(match.Groups["amount"].Value.Replace(formatter.CurrencyGroupSeparator, ""), GetNumberFormatInfo());
                 if (EnableLog) Log.Info("Converted number is: " + amountToConvert, GetType());

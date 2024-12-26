@@ -1,10 +1,10 @@
 $ErrorActionPreference = "Stop"
 
 $outputDir = "..\bin"
-$zipX64 = "$outputDir\CurrencyConverter-$version-x64.zip"
-$zipARM64 = "$outputDir\CurrencyConverter-$version-ARM64.zip"
-$tempDirX64 = "$outputDir\temp\CurrencyConverter-$version-x64"
-$tempDirARM64 = "$outputDir\temp\CurrencyConverter-$version-ARM64"
+$zipX64 = "$outputDir\$name-$version-x64.zip"
+$zipARM64 = "$outputDir\$name-$version-ARM64.zip"
+$tempDirX64 = "$outputDir\temp\$name-$version-x64"
+$tempDirARM64 = "$outputDir\temp\$name-$version-ARM64"
 
 # Function to extract zip files
 function Extract-Zip {
@@ -35,14 +35,14 @@ Extract-Zip -zipPath $zipX64 -extractPath $tempDirX64
 Extract-Zip -zipPath $zipARM64 -extractPath $tempDirARM64
 
 # Build x64 installer
-Build-Installer -platform "x64" -targetDir "$tempDirX64\CurrencyConverter"
+Build-Installer -platform "x64" -targetDir "$tempDirX64\$name"
 
 # Build ARM64 installer
-Build-Installer -platform "ARM64" -targetDir "$tempDirARM64\CurrencyConverter"
+Build-Installer -platform "ARM64" -targetDir "$tempDirARM64\$name"
 
 # Check if the installers were created successfully
-$x64 = "$outputDir\CurrencyConverter-$version-x64.exe"
-$arm64 = "$outputDir\CurrencyConverter-$version-ARM64.exe"
+$x64 = "$outputDir\$name-$version-x64.exe"
+$arm64 = "$outputDir\$name-$version-ARM64.exe"
 
 $x64Exists = Test-Path $x64
 $arm64Exists = Test-Path $arm64

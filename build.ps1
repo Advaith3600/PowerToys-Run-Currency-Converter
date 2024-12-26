@@ -3,12 +3,13 @@ $ErrorActionPreference = "Stop"
 $projectDirectory = "$PSScriptRoot\Community.PowerToys.Run.Plugin.CurrencyConverter"
 $jsonContent = Get-Content -Path "$projectDirectory\plugin.json" -Raw | ConvertFrom-Json
 $version = $jsonContent.version
+$name = $jsonContent.name
 
 foreach ($platform in "x64", "ARM64")
 {
-    if (Test-Path -Path "$PSScriptRoot\bin\CurrencyConverter-$version-$platform.zip")
+    if (Test-Path -Path "$PSScriptRoot\bin\$name-$version-$platform.zip")
     {
-        Remove-Item -Path "$PSScriptRoot\bin\CurrencyConverter-$version-$platform.zip"
+        Remove-Item -Path "$PSScriptRoot\bin\$name-$version-$platform.zip"
     }
 
     if (Test-Path -Path "$projectDirectory\bin")
@@ -23,10 +24,10 @@ foreach ($platform in "x64", "ARM64")
 
     dotnet build $projectDirectory.sln -c Release /p:Platform=$platform --property WarningLevel=0
 
-    Remove-Item -Path "$projectDirectory\bin\*" -Recurse -Include *.xml, *.pdb, PowerToys.*, Wox.*
-    Rename-Item -Path "$projectDirectory\bin\$platform\Release" -NewName "CurrencyConverter"
+    Remove-Item -Path "$projectDirectory\bin\*" -Recurse -Include *.xml, *.pdb, PowerToys.*, Wox.*, Microsoft.*
+    Rename-Item -Path "$projectDirectory\bin\$platform\Release" -NewName "$name"
 
-    Compress-Archive -Path "$projectDirectory\bin\$platform\CurrencyConverter" -DestinationPath "$PSScriptRoot\bin\CurrencyConverter-$version-$platform.zip"
+    Compress-Archive -Path "$projectDirectory\bin\$platform\$name" -DestinationPath "$PSScriptRoot\bin\$name-$version-$platform.zip"
 }
 
 Set-Location -Path "exe"
