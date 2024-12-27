@@ -12,6 +12,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
     public class Converter
     {
         private Settings _settings { get; }
+        private CustomConverter _customConverter { get; }
+
         internal string? IconPath { get; set; }
         internal string WarningIconPath { get; set; } = "";
 
@@ -27,7 +29,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         {
             _settings = settings;
 
-            HttpClientHandler handler = new HttpClientHandler
+            _customConverter = new();
+
+            HttpClientHandler handler = new()
             {
                 UseDefaultCredentials = true,
                 PreAuthenticate = true

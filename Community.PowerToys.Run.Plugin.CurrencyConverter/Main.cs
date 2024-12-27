@@ -24,7 +24,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private bool _disposed;
 
         private PluginJsonStorage<Settings> _storage { get; }
+
         private Settings _settings { get; }
+
         private IPluginUpdateHandler _updater { get; }
         private Converter _converter { get; }
 
