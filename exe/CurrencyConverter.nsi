@@ -1,20 +1,32 @@
 !include "MUI2.nsh"
+!include "nsProcess.nsh"
+
+;--------------------------------
+; Variables and Defines
+!define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${name}"
 
 ;--------------------------------
 ; General Settings
-Name "CurrencyConverter ${ver} ${platform}"
-OutFile ".\..\bin\CurrencyConverter-${ver}-${platform}.exe"
-InstallDir "$LOCALAPPDATA\Microsoft\PowerToys\PowerToys Run\Plugins\CurrencyConverter"
-RequestExecutionLevel user
+Name "${name} ${ver} ${platform}"
+OutFile ".\..\bin\${name}-${ver}-${platform}.exe"
+InstallDir "$LOCALAPPDATA\Microsoft\PowerToys\PowerToys Run\Plugins\${name}"
+RequestExecutionLevel admin
+SetCompressor /SOLID lzma
+ManifestDPIAware true
+Unicode true
+
 Icon "icon.ico"
 UninstallIcon "icon.ico"
 LicenseData "..\LICENSE"
-BrandingText "CurrencyConverter ${ver} ${platform}"
+BrandingText "${name} ${ver} ${platform}"
 
 ;--------------------------------
 ; Interface Settings
 !define MUI_ICON "icon.ico"
 !define MUI_UNICON "icon.ico"
+!define MUI_ABORTWARNING
+!define MUI_FINISHPAGE_NOAUTOCLOSE
+!define MUI_UNFINISHPAGE_NOAUTOCLOSE
 
 ;--------------------------------
 ; Pages
@@ -34,7 +46,7 @@ BrandingText "CurrencyConverter ${ver} ${platform}"
 ;--------------------------------
 ; Version Information
 VIProductVersion "${ver}.0"
-VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductName" "CurrencyConverter Setup"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductName" "${name} Setup"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "CompanyName" "advaith3600"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalCopyright" "advaith3600"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "FileDescription" "Currency Converter plugin for PowerToys Run"
@@ -42,51 +54,61 @@ VIAddVersionKey /LANG=${LANG_ENGLISH} "FileVersion" "${ver}"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductVersion" "${ver}"
 
 ;--------------------------------
+; Functions
+Function .onInit
+    ; Check for PowerToys Run process
+    ${nsProcess::FindProcess} "PowerToys.PowerLauncher.exe" $R0
+    ${If} $R0 = 0
+        MessageBox MB_OK|MB_ICONEXCLAMATION "Please close PowerToys Run before continuing the installation.\nYou can do this by going to the system tray, right-clicking the PowerToys icon, and clicking Exit."
+        Abort
+    ${EndIf}
+    ${nsProcess::Unload}
+FunctionEnd
+
+;--------------------------------
 ; Installer Sections
-Section ""
-  ClearErrors
-  ; Check if already installed
-  ReadRegStr $0 HKCU "Software\advaith3600\CurrencyConverter" "InstallPath"
-  IfFileExists "$0\uninstall.exe" 0 +7
-  MessageBox MB_YESNO "CurrencyConverter is already installed. Do you want to uninstall it first?" IDYES uninst IDNO abort
-  abort:
-  Abort
-  uninst:
-  ; Execute the uninstaller and wait for it to complete
-  ExecWait '"$0\uninstall.exe"'
-  ; Check if the uninstaller process has finished
-  Sleep 100
-  IfFileExists "$0\uninstall.exe" loop
-  loop:
-  Sleep 100
-  IfFileExists "$0\uninstall.exe" loop
-
-  SetOutPath $INSTDIR
-  File /r "${direct}\*"
-  
-  WriteUninstaller "$INSTDIR\uninstall.exe"
+Section "MainSection" SEC01
+    SetOutPath $INSTDIR
+    SetOverwrite try
+    
+    ; Delete existing files first
+    RMDir /r "$INSTDIR"
+    
+    ; Copy new files
+    File /r "${direct}\*"
+    
+    WriteUninstaller "$INSTDIR\uninstall.exe"
+    
+    ; Write registry entries
+    WriteRegStr HKCU "Software\advaith3600\${name}" "InstallPath" "$INSTDIR"
+    WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayName" "${name}"
+    WriteRegStr HKLM "${UNINSTALL_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
+    WriteRegStr HKLM "${UNINSTALL_KEY}" "InstallLocation" "$INSTDIR"
+    WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayVersion" "${ver}"
+    WriteRegStr HKLM "${UNINSTALL_KEY}" "Publisher" "advaith3600"
+    WriteRegDWORD HKLM "${UNINSTALL_KEY}" "NoModify" 1
+    WriteRegDWORD HKLM "${UNINSTALL_KEY}" "NoRepair" 1
 SectionEnd
 
 ;--------------------------------
-; Add Registry Entries
-Section "Add Registry Entries"
-  ; Store the installation path
-  WriteRegStr HKCU "Software\advaith3600\CurrencyConverter" "InstallPath" "$INSTDIR"
-  
-  ; Register for uninstallation
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CurrencyConverter" "DisplayName" "CurrencyConverter"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CurrencyConverter" "UninstallString" "$INSTDIR\uninstall.exe"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CurrencyConverter" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CurrencyConverter" "DisplayVersion" "${ver}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CurrencyConverter" "Publisher" "advaith3600"
-SectionEnd
-
-;--------------------------------
-; Uninstaller
+; Uninstaller Section
 Section "Uninstall"
-  Delete "$INSTDIR\*.*"
-  RMDir "$INSTDIR"
-  DeleteRegKey HKCU "Software\advaith3600\CurrencyConverter"
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CurrencyConverter"
+    ; Check for PowerToys Run process
+    ${nsProcess::FindProcess} "PowerToys.PowerLauncher.exe" $R0
+    ${If} $R0 = 0
+        MessageBox MB_OK|MB_ICONEXCLAMATION "Please close PowerToys Run before continuing the installation.\nYou can do this by going to the system tray, right-clicking the PowerToys icon, and clicking Exit."
+        Abort
+    ${EndIf}
+    ${nsProcess::Unload}
+    
+    ; Remove files and folders
+    Delete "$INSTDIR\uninstall.exe"
+    RMDir /r "$INSTDIR"
+    
+    ; Remove registry entries
+    DeleteRegKey HKCU "Software\advaith3600\${name}"
+    DeleteRegKey HKLM "${UNINSTALL_KEY}"
+    
+    ; Notify user to restart PowerToys
+    MessageBox MB_OK|MB_ICONINFORMATION "Uninstallation complete. Please restart PowerToys for the changes to take effect."
 SectionEnd
-

@@ -25,7 +25,7 @@ function Build-Installer {
         [string]$targetDir
     )
 
-    & makensis /Dver=$version /Ddirect=$targetDir /Dplatform=$platform .\CurrencyConverter.nsi
+    & makensis /Dver=$version /Ddirect=$targetDir /Dplatform=$platform /Dname=$name .\CurrencyConverter.nsi
 }
 
 # Extract x64 zip
