@@ -31,7 +31,7 @@ foreach ($platform in "x64", "ARM64")
     Remove-Item -Path "$projectDirectory\bin\*" -Recurse -Include *.xml, *.pdb, PowerToys.*, Wox.*, Microsoft.*
     Rename-Item -Path "$projectDirectory\bin\$platform\$configuration" -NewName "$name"
 
-    Compress-Archive -Path "$projectDirectory\bin\$platform\$name" -DestinationPath "$PSScriptRoot\bin\$name-$version-$platform.zip"
+    Compress-Archive -Path "$projectDirectory\bin\$platform\$name" -DestinationPath "$PSScriptRoot\bin\$name-$version-$platform.zip" -CompressionLevel Optimal
 }
 
 Set-Location -Path "exe"

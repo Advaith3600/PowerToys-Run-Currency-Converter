@@ -1,14 +1,14 @@
-﻿using Community.PowerToys.Run.Plugin.Update;
-using ManagedCommon;
-using Microsoft.PowerToys.Settings.UI.Library;
+﻿using ManagedCommon;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
-using Wox.Infrastructure.Storage;
+using Community.PowerToys.Run.Plugin.Update;
+using Microsoft.PowerToys.Settings.UI.Library;
 using Wox.Plugin;
 using Wox.Plugin.Logger;
+using Wox.Infrastructure.Storage;
 
 namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {

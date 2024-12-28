@@ -59,7 +59,7 @@ Function .onInit
     ; Check for PowerToys Run process
     ${nsProcess::FindProcess} "PowerToys.PowerLauncher.exe" $R0
     ${If} $R0 = 0
-        MessageBox MB_OK|MB_ICONEXCLAMATION "Please close PowerToys Run before continuing the installation.\nYou can do this by going to the system tray, right-clicking the PowerToys icon, and clicking Exit."
+        MessageBox MB_OK|MB_ICONEXCLAMATION "Please close PowerToys Run before continuing the installation. You can do this by going to the system tray, right-clicking the PowerToys icon, and clicking Exit."
         Abort
     ${EndIf}
     ${nsProcess::Unload}
@@ -96,7 +96,7 @@ Section "Uninstall"
     ; Check for PowerToys Run process
     ${nsProcess::FindProcess} "PowerToys.PowerLauncher.exe" $R0
     ${If} $R0 = 0
-        MessageBox MB_OK|MB_ICONEXCLAMATION "Please close PowerToys Run before continuing the installation.\nYou can do this by going to the system tray, right-clicking the PowerToys icon, and clicking Exit."
+        MessageBox MB_OK|MB_ICONEXCLAMATION "Please close PowerToys Run before continuing the installation. You can do this by going to the system tray, right-clicking the PowerToys icon, and clicking Exit."
         Abort
     ${EndIf}
     ${nsProcess::Unload}

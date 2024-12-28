@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Community.PowerToys.Run.Plugin.CurrencyConverter
+﻿namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {
 	public class Helper
 	{

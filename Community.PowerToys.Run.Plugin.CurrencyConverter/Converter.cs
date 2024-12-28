@@ -1,9 +1,9 @@
-﻿using System.Collections.Concurrent;
-using System.Globalization;
-using System.IO;
+﻿using System.IO;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
+using System.Globalization;
+using System.Collections.Concurrent;
 using Wox.Plugin;
 using Wox.Plugin.Logger;
 
@@ -12,24 +12,22 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
     public class Converter
     {
         private Settings _settings { get; }
-        private CustomConverter _customConverter { get; }
+        private CustomConverterSettings _customConverterSettings { get; }
 
         internal string? IconPath { get; set; }
         internal string WarningIconPath { get; set; } = "";
 
         private readonly string _aliasFileLocation;
-        private readonly ConcurrentDictionary<string, (JsonElement Rates, DateTime Timestamp)> _conversionCache = new();
+        private readonly ConcurrentDictionary<(string From, string To), (decimal Rate, DateTime Timestamp)> _conversionCache = new();
         private readonly HttpClient _httpClient;
 
-        private const int CacheExpirationHours = 3;
         private const string AliasFileName = "alias.json";
         private const string DefaultAliasResourceName = "Community.PowerToys.Run.Plugin.CurrencyConverter.alias.default.json";
 
         public Converter(Settings settings)
         {
             _settings = settings;
-
-            _customConverter = new();
+            _customConverterSettings = new();
 
             HttpClientHandler handler = new()
             {
@@ -42,7 +40,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 Constant.DataDirectory,
                 "Settings",
                 "Plugins",
-                 Assembly.GetExecutingAssembly().GetName().Name,
+                Assembly.GetExecutingAssembly().GetName().Name,
                 AliasFileName);
 
             EnsureAliasFileExists();
@@ -159,80 +157,101 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
             catch (Exception e)
             {
-                const string link = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json";
                 return isGlobal && !_settings.ShowWarningsInGlobal ? null : new Result
                 {
                     Title = e.Message,
                     SubTitle = "Press enter or click to open the currencies list",
                     IcoPath = WarningIconPath,
-                    ContextData = new Dictionary<string, string> { { "externalLink", link } },
-                    Action = _ => Helper.PerformAction("externalLink", link)
+                    ContextData = new Dictionary<string, string> { { "externalLink", _customConverterSettings.ConversionHelperLink } },
+                    Action = _ => Helper.PerformAction("externalLink", _customConverterSettings.ConversionHelperLink)
                 };
             }
         }
 
         private decimal GetConversionRateSync(string fromCurrency, string toCurrency)
         {
-            if (_conversionCache.TryGetValue(fromCurrency, out var cachedData) &&
-                cachedData.Timestamp > DateTime.Now.AddHours(-CacheExpirationHours))
+            var cacheKey = _customConverterSettings.LinkHasToCurrency ? (fromCurrency, toCurrency) : (fromCurrency, "*");
+
+            // Check cache based on whether the API uses both currencies in the URL
+
+            if (_conversionCache.TryGetValue(cacheKey, out var directCacheData) &&
+                directCacheData.Timestamp > DateTime.Now.AddHours(-_customConverterSettings.CacheExpirationHours))
             {
 #if DEBUG
-                Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Found it from the cache", GetType());
+                Log.Info($"Converting from: {fromCurrency} to: {toCurrency} | Found direct rate in cache", GetType());
 #endif
-                if (cachedData.Rates.TryGetProperty(toCurrency, out JsonElement rate))
-                {
-                    return rate.GetDecimal();
-                }
-                throw new Exception($"{toCurrency.ToUpper()} is not a valid currency");
+                return directCacheData.Rate;
             }
 
 #if DEBUG
-            Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Trying to fetch", GetType());
+            Log.Info($"Converting from: {fromCurrency} to: {toCurrency} | Fetching from API", GetType());
 #endif
 
-            string url = $"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{fromCurrency}.min.json";
+            string url = _customConverterSettings.GetConversionLink(fromCurrency, toCurrency);
             HttpResponseMessage response = _httpClient.GetAsync(url).Result;
 
             if (!response.IsSuccessStatusCode)
             {
+                string errorMessage = _customConverterSettings.LinkHasToCurrency ?
+                    $"{fromCurrency.ToUpper()} or {toCurrency.ToUpper()} is not a valid currency" :
+                    $"{fromCurrency.ToUpper()} is not a valid currency";
+
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
-                    throw new Exception($"{fromCurrency.ToUpper()} is not a valid currency");
+                    throw new Exception(errorMessage);
                 }
                 else
                 {
-                    string fallbackUrl = $"https://latest.currency-api.pages.dev/v1/currencies/{fromCurrency}.min.json";
+                    string fallbackUrl = _customConverterSettings.GetConversionFallbackLink(fromCurrency, toCurrency);
                     response = _httpClient.GetAsync(fallbackUrl).Result;
 
                     if (!response.IsSuccessStatusCode)
                     {
                         throw response.StatusCode == System.Net.HttpStatusCode.NotFound
-                            ? new Exception($"{fromCurrency.ToUpper()} is not a valid currency")
+                            ? new Exception(errorMessage)
                             : new Exception("Something went wrong while fetching the conversion rate");
                     }
 
 #if DEBUG
-                    Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Fetched from fallback", GetType());
+                    Log.Info($"Converting from: {fromCurrency} to: {toCurrency} | Fetched from fallback", GetType());
 #endif
+                }
+            }
+
+            string content = response.Content.ReadAsStringAsync().Result;
+            decimal conversionRate;
+
+            if (_customConverterSettings.LinkHasToCurrency)
+            {
+                // Parse direct rate from response
+                try
+                {
+                    var jsonResponse = JsonDocument.Parse(content).RootElement;
+                    conversionRate = jsonResponse.GetProperty("rate").GetDecimal();
+                    _conversionCache[cacheKey] = (conversionRate, DateTime.Now);
+                }
+                catch
+                {
+                    throw new Exception($"Invalid response format for {toCurrency.ToUpper()} conversion");
                 }
             }
             else
             {
-#if DEBUG
-                Log.Info("Converting from: " + fromCurrency + " to: " + toCurrency + " | Fetched from API", GetType());
-#endif
+                JsonElement fromCurrencyElement = JsonDocument.Parse(content).RootElement.GetProperty(fromCurrency); 
+                foreach (JsonProperty property in fromCurrencyElement.EnumerateObject()) 
+                { 
+                    string targetCurrency = property.Name; 
+                    decimal rate = property.Value.GetDecimal(); 
+                    _conversionCache[(fromCurrency, targetCurrency)] = (rate, DateTime.Now); 
+                }
+                if (!_conversionCache.TryGetValue((fromCurrency, toCurrency), out var cacheOutput)) 
+                {
+                    throw new Exception($"{toCurrency.ToUpper()} is not a valid currency"); 
+                }
+                conversionRate = cacheOutput.Rate;
             }
 
-            string content = response.Content.ReadAsStringAsync().Result;
-            JsonElement element = JsonDocument.Parse(content).RootElement.GetProperty(fromCurrency);
-
-            if (!element.TryGetProperty(toCurrency, out JsonElement conversionRate))
-            {
-                throw new Exception($"{toCurrency.ToUpper()} is not a valid currency");
-            }
-
-            _conversionCache[fromCurrency] = (element, DateTime.Now);
-            return conversionRate.GetDecimal();
+            return conversionRate;
         }
 
         private string GetCurrencyFromAlias(string currency)
