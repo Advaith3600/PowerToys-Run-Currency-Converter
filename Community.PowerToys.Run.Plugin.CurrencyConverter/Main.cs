@@ -1,7 +1,5 @@
 ﻿using ManagedCommon;
 using System.Globalization;
-using System.IO;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
 using Community.PowerToys.Run.Plugin.Update;
@@ -86,7 +84,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             catch (Exception)
             {
                 return isGlobal && !_settings.ShowWarningsInGlobal ? [] : [
-                    new() 
+                    new()
                     {
                         Title = "Invalid expression provided",
                         SubTitle = "Please check your mathematical expression",
@@ -167,8 +165,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 try
                 {
                     _converter.ValidateAliasFile();
+                    _converter.ValidateConversionAPI();
                 }
-                catch (Exception ex) when (ex is FileNotFoundException || ex is JsonException)
+                catch (Exception ex)
                 {
                     results.Add(new Result
                     {
@@ -178,6 +177,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                         ContextData = new Dictionary<string, string> { { "externalLink", GithubReadmeURL } },
                         Action = _ => Helper.PerformAction("externalLink", GithubReadmeURL)
                     });
+
+                    return results;
                 }
             }
 

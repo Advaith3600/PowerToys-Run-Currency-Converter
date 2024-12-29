@@ -45,7 +45,7 @@ To set up aliasing, follow these steps:
 3. Add an entry for each alias you want to create. Each entry should have the format `"alias": "currency_code"`. For example, to alias "dollar" to "usd", add the following entry: `"dollar": "usd"`.
 4. Save the `alias.json` file.
 
-Please note that when creating aliases, ensure that the alias key does **not** contain any numbers or spaces and is in lowercase.
+Please note that when creating aliases, ensure that the alias key does **not** contain any numbers or spaces.
 
 Once you have set up the aliases, you can use them in your currency conversions. For example, instead of typing `$$ 100 usd to eur`, you can simply type `$$ 100 dollar to euro`.
 
@@ -118,4 +118,21 @@ Choose the method that suits your preference and enjoy using the Currency Conver
 
 ## Conversion API
 
-This plugin internally uses [Currency API](https://github.com/fawazahmed0/exchange-api) for the latest conversion rates. 
+This plugin internally uses various APIs for the latest conversion rates:
+
+1. **Default: [fawazahmed0/exchange-api](https://github.com/fawazahmed0/exchange-api)**
+   - This API is refreshed every day at midnight.
+   - It is **free** and **unlimited**, and therefore no API key is required.
+   - **Important:** Do not change from the default unless it is absolutely necessary. The default API provides reliable daily updates and does not require any additional setup.
+
+2. **[ExchangeRateAPI](https://www.exchangerate-api.com/)**
+   - Updates: The ExchangeRateAPI is updated frequently throughout the day. You can read more about it [here](https://www.exchangerate-api.com/#pricing).
+   - Free Tier: Offers a free tier that allows for 1,500 requests per month.
+   - Note: This API does not support cryptocurrency conversions.
+   - Details: Please refer to the CurrencyAPI documentation for specific details on update frequency, pricing, and supported features.
+
+3. **[CurrencyAPI](https://currencyapi.com)**
+   - Updates: The CurrencyAPI is updated frequently throughout the day. You can read more about it [here](https://currencyapi.com/pricing/).
+   - Details: Please refer to the CurrencyAPI documentation for specific details on update frequency, pricing, and supported features.
+
+**Please Note:** None of the APIs mentioned above are directly associated with this plugin. If you wish to use any other API for conversion rates or have suggestions for new APIs, please open a pull request (PR) to propose adding it to the plugin.

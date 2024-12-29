@@ -9,16 +9,31 @@ using Wox.Plugin.Logger;
 
 namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {
+    internal class CaseInsensitiveTupleComparer : IEqualityComparer<(string From, string To)>
+    {
+        public bool Equals((string From, string To) x, (string From, string To) y)
+        {
+            return string.Equals(x.From, y.From, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(x.To, y.To, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public int GetHashCode((string From, string To) obj)
+        {
+            return StringComparer.OrdinalIgnoreCase.GetHashCode(obj.From) ^
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.To);
+        }
+    }
+
     public class Converter
     {
         private Settings _settings { get; }
-        private CustomConverterSettings _customConverterSettings { get; }
+        private ConverterSettings _converterSettings { get; }
 
         internal string? IconPath { get; set; }
         internal string WarningIconPath { get; set; } = "";
 
         private readonly string _aliasFileLocation;
-        private readonly ConcurrentDictionary<(string From, string To), (decimal Rate, DateTime Timestamp)> _conversionCache = new();
+        private readonly ConcurrentDictionary<(string From, string To), (decimal Rate, DateTime Timestamp)> _conversionCache = new(new CaseInsensitiveTupleComparer());
         private readonly HttpClient _httpClient;
 
         private const string AliasFileName = "alias.json";
@@ -27,7 +42,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         public Converter(Settings settings)
         {
             _settings = settings;
-            _customConverterSettings = new();
+            _converterSettings = new(_settings);
 
             HttpClientHandler handler = new()
             {
@@ -162,20 +177,18 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     Title = e.Message,
                     SubTitle = "Press enter or click to open the currencies list",
                     IcoPath = WarningIconPath,
-                    ContextData = new Dictionary<string, string> { { "externalLink", _customConverterSettings.ConversionHelperLink } },
-                    Action = _ => Helper.PerformAction("externalLink", _customConverterSettings.ConversionHelperLink)
+                    ContextData = new Dictionary<string, string> { { "externalLink", _converterSettings.GetHelperLink() } },
+                    Action = _ => Helper.PerformAction("externalLink", _converterSettings.GetHelperLink())
                 };
             }
         }
 
         private decimal GetConversionRateSync(string fromCurrency, string toCurrency)
         {
-            var cacheKey = _customConverterSettings.LinkHasToCurrency ? (fromCurrency, toCurrency) : (fromCurrency, "*");
-
-            // Check cache based on whether the API uses both currencies in the URL
+            var cacheKey = (fromCurrency, toCurrency);
 
             if (_conversionCache.TryGetValue(cacheKey, out var directCacheData) &&
-                directCacheData.Timestamp > DateTime.Now.AddHours(-_customConverterSettings.CacheExpirationHours))
+                directCacheData.Timestamp > DateTime.Now.AddHours(-_settings.ConversionCacheDuration))
             {
 #if DEBUG
                 Log.Info($"Converting from: {fromCurrency} to: {toCurrency} | Found direct rate in cache", GetType());
@@ -187,28 +200,24 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             Log.Info($"Converting from: {fromCurrency} to: {toCurrency} | Fetching from API", GetType());
 #endif
 
-            string url = _customConverterSettings.GetConversionLink(fromCurrency, toCurrency);
+            string url = _converterSettings.GetConversionLink(fromCurrency, toCurrency);
             HttpResponseMessage response = _httpClient.GetAsync(url).Result;
 
             if (!response.IsSuccessStatusCode)
             {
-                string errorMessage = _customConverterSettings.LinkHasToCurrency ?
-                    $"{fromCurrency.ToUpper()} or {toCurrency.ToUpper()} is not a valid currency" :
-                    $"{fromCurrency.ToUpper()} is not a valid currency";
-
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
-                    throw new Exception(errorMessage);
+                    throw new Exception($"{fromCurrency.ToUpper()} is not a valid currency");
                 }
                 else
                 {
-                    string fallbackUrl = _customConverterSettings.GetConversionFallbackLink(fromCurrency, toCurrency);
+                    string fallbackUrl = _converterSettings.GetConversionFallbackLink(fromCurrency, toCurrency);
                     response = _httpClient.GetAsync(fallbackUrl).Result;
 
                     if (!response.IsSuccessStatusCode)
                     {
                         throw response.StatusCode == System.Net.HttpStatusCode.NotFound
-                            ? new Exception(errorMessage)
+                            ? new Exception($"{fromCurrency.ToUpper()} is not a valid currency")
                             : new Exception("Something went wrong while fetching the conversion rate");
                     }
 
@@ -221,35 +230,17 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             string content = response.Content.ReadAsStringAsync().Result;
             decimal conversionRate;
 
-            if (_customConverterSettings.LinkHasToCurrency)
+            JsonElement fromCurrencyElement = _converterSettings.GetRootJsonElementFor(content, fromCurrency);
+            foreach (JsonProperty property in fromCurrencyElement.EnumerateObject())
             {
-                // Parse direct rate from response
-                try
-                {
-                    var jsonResponse = JsonDocument.Parse(content).RootElement;
-                    conversionRate = jsonResponse.GetProperty("rate").GetDecimal();
-                    _conversionCache[cacheKey] = (conversionRate, DateTime.Now);
-                }
-                catch
-                {
-                    throw new Exception($"Invalid response format for {toCurrency.ToUpper()} conversion");
-                }
+                (string targetCurrency, decimal rate) = _converterSettings.GetRateFor(property);
+                _conversionCache[(fromCurrency, targetCurrency)] = (rate, DateTime.Now);
             }
-            else
+            if (!_conversionCache.TryGetValue((fromCurrency, toCurrency), out var cacheOutput))
             {
-                JsonElement fromCurrencyElement = JsonDocument.Parse(content).RootElement.GetProperty(fromCurrency); 
-                foreach (JsonProperty property in fromCurrencyElement.EnumerateObject()) 
-                { 
-                    string targetCurrency = property.Name; 
-                    decimal rate = property.Value.GetDecimal(); 
-                    _conversionCache[(fromCurrency, targetCurrency)] = (rate, DateTime.Now); 
-                }
-                if (!_conversionCache.TryGetValue((fromCurrency, toCurrency), out var cacheOutput)) 
-                {
-                    throw new Exception($"{toCurrency.ToUpper()} is not a valid currency"); 
-                }
-                conversionRate = cacheOutput.Rate;
+                throw new Exception($"{toCurrency.ToUpper()} is not a valid currency");
             }
+            conversionRate = cacheOutput.Rate;
 
             return conversionRate;
         }
@@ -265,7 +256,20 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             {
                 string jsonData = File.ReadAllText(_aliasFileLocation);
                 using JsonDocument doc = JsonDocument.Parse(jsonData);
-                return doc.RootElement.TryGetProperty(currency, out JsonElement value) ? value.GetString() : currency;
+
+                JsonElement rootElement = doc.RootElement;
+                string result = currency;
+
+                foreach (JsonProperty property in rootElement.EnumerateObject())
+                {
+                    if (property.Name.Equals(currency, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result = property.Value.GetString();
+                        break;
+                    }
+                }
+
+                return result;
             }
             catch
             {
@@ -341,9 +345,11 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
             catch (JsonException)
             {
-                throw new JsonException("Invalid JSON format.");
+                throw new JsonException("Invalid JSON format in alias file.");
             }
         }
+
+        internal void ValidateConversionAPI() => _converterSettings.ValidateConversionAPI();
 
         public void Dispose()
         {
