@@ -56,13 +56,16 @@ VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductVersion" "${ver}"
 ;--------------------------------
 ; Functions
 Function .onInit
-    ; Check for PowerToys Run process
-    ${nsProcess::FindProcess} "PowerToys.PowerLauncher.exe" $R0
-    ${If} $R0 = 0
-        MessageBox MB_OK|MB_ICONEXCLAMATION "Please close PowerToys Run before continuing the installation. You can do this by going to the system tray, right-clicking the PowerToys icon, and clicking Exit."
-        Abort
+    ; Check if the installation folder exists
+    ${If} ${FileExists} "$InstDir\*"
+        ; Check for PowerToys Run process
+        ${nsProcess::FindProcess} "PowerToys.PowerLauncher.exe" $R0
+        ${If} $R0 = 0
+            MessageBox MB_OK|MB_ICONEXCLAMATION "Please close PowerToys Run before continuing the installation. You can do this by going to the system tray, right-clicking the PowerToys icon, and clicking Exit."
+            Abort
+        ${EndIf}
+        ${nsProcess::Unload}
     ${EndIf}
-    ${nsProcess::Unload}
 FunctionEnd
 
 ;--------------------------------
@@ -82,9 +85,10 @@ Section "MainSection" SEC01
     ; Write registry entries
     WriteRegStr HKCU "Software\advaith3600\${name}" "InstallPath" "$INSTDIR"
     WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayName" "${name}"
+    WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\uninstall.exe"
+    WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayVersion" "${ver}"
     WriteRegStr HKLM "${UNINSTALL_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
     WriteRegStr HKLM "${UNINSTALL_KEY}" "InstallLocation" "$INSTDIR"
-    WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayVersion" "${ver}"
     WriteRegStr HKLM "${UNINSTALL_KEY}" "Publisher" "advaith3600"
     WriteRegDWORD HKLM "${UNINSTALL_KEY}" "NoModify" 1
     WriteRegDWORD HKLM "${UNINSTALL_KEY}" "NoRepair" 1
@@ -108,7 +112,4 @@ Section "Uninstall"
     ; Remove registry entries
     DeleteRegKey HKCU "Software\advaith3600\${name}"
     DeleteRegKey HKLM "${UNINSTALL_KEY}"
-    
-    ; Notify user to restart PowerToys
-    MessageBox MB_OK|MB_ICONINFORMATION "Uninstallation complete. Please restart PowerToys for the changes to take effect."
 SectionEnd
