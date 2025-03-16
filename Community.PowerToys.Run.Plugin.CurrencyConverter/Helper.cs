@@ -1,9 +1,15 @@
-﻿namespace Community.PowerToys.Run.Plugin.CurrencyConverter
+﻿using Wox.Plugin.Logger;
+
+namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {
 	public class Helper
 	{
         public static bool PerformAction(string action, string context)
         {
+#if DEBUG
+            Log.Info("Performing '" + action + "' on: " + context, typeof(Main));
+#endif
+
             switch (action)
             {
                 case "copy":

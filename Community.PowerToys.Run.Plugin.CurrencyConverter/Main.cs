@@ -208,17 +208,22 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
             if (selectedResult?.ContextData is Dictionary<string, string> contextData)
             {
+#if DEBUG
+                string dictContents = string.Join(", ", contextData.Select(kv => $"{kv.Key}: {kv.Value}"));
+                Log.Info($"Handling context action. Dictionary contents: {dictContents}", GetType());
+#endif
                 if (contextData.TryGetValue("copy", out string? value))
                 {
+                    string toCopy = value.ToString();
                     results.Add(
-                        new ContextMenuResult
+                        new()
                         {
                             PluginName = Name,
                             Title = "Copy (Enter)",
                             FontFamily = "Segoe Fluent Icons,Segoe MDL2 Assets",
                             Glyph = "\xE8C8",
                             AcceleratorKey = Key.Enter,
-                            Action = _ => Helper.PerformAction("copy", value.ToString())
+                            Action = _ => Helper.PerformAction("copy", toCopy)
                         }
                     );
                 }
@@ -226,8 +231,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 if (contextData.TryGetValue("externalLink", out value))
                 {
                     string shortcutPrefix = contextData.ContainsKey("copy") ? "Ctrl + " : "";
+                    string link = value.ToString();
                     results.Add(
-                        new ContextMenuResult
+                        new()
                         {
                             PluginName = Name,
                             Title = $"Open ({shortcutPrefix}Enter)",
@@ -235,7 +241,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                             Glyph = "\xE8A7",
                             AcceleratorKey = Key.Enter,
                             AcceleratorModifiers = contextData.ContainsKey("copy") ? ModifierKeys.Control : ModifierKeys.None,
-                            Action = _ => Helper.PerformAction("externalLink", value.ToString())
+                            Action = _ => Helper.PerformAction("externalLink", link)
                         }
                     );
                 }
