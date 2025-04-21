@@ -9,6 +9,32 @@ PowerToys Run plugin which will convert real and crypto currencies.
 
 ![Screenshot](screenshots/screenshot1.png)
 
+## Installation
+
+There are multiple ways to install the Currency Converter plugin for PowerToys:
+
+### Method 1: Manual Installation
+
+1. Download the latest release of the Currency Converter from the [releases page](https://github.com/advaith3600/powertoys-run-currency-converter/releases).
+2. Extract the zip file's contents to your PowerToys modules directory (usually `%LOCALAPPDATA%\Microsoft\PowerToys\PowerToys Run\Plugins`).
+3. Restart PowerToys to complete the installation process.
+
+### Method 2: Executable File
+
+1. Download the executable file for the Currency Converter plugin from the [releases page](https://github.com/advaith3600/powertoys-run-currency-converter/releases).
+2. Run the executable file and follow the installation instructions.
+3. Restart PowerToys.
+
+### Method 3: Using Winget
+
+1. Open a command prompt or PowerShell window.
+2. Run the following command: `winget install advaith.CurrencyConverterPowerToys`.
+3. Wait for the installation to complete.
+4. Restart PowerToys.
+
+Please note that you only need to exit PowerToys when updating the Currency Converter plugin.
+Choose the method that suits your preference and enjoy using the Currency Converter plugin in PowerToys!
+
 ## Usage
 
 ```
@@ -89,32 +115,6 @@ The plugin outputs values using dynamic precision. This means that if a value is
 You can input mathematical expressions, and the plugin will evaluate them using the BODMAS rule. The permitted operations are `+` (addition), `-` (subtraction), `*` (multiplication), and `/` (division). The use of brackets is also supported.
 
 ![Screenshot](screenshots/screenshot6.png)
-
-## Installation
-
-There are multiple ways to install the Currency Converter plugin for PowerToys:
-
-### Method 1: Manual Installation
-
-1. Download the latest release of the Currency Converter from the [releases page](https://github.com/advaith3600/powertoys-run-currency-converter/releases).
-2. Extract the zip file's contents to your PowerToys modules directory (usually `%LOCALAPPDATA%\Microsoft\PowerToys\PowerToys Run\Plugins`).
-3. Restart PowerToys to complete the installation process.
-
-### Method 2: Executable File
-
-1. Download the executable file for the Currency Converter plugin from the [releases page](https://github.com/advaith3600/powertoys-run-currency-converter/releases).
-2. Run the executable file and follow the installation instructions.
-3. Restart PowerToys.
-
-### Method 3: Using Winget
-
-1. Open a command prompt or PowerShell window.
-2. Run the following command: `winget install advaith.CurrencyConverterPowerToys`.
-3. Wait for the installation to complete.
-4. Restart PowerToys.
-
-Please note that you only need to exit PowerToys when updating the Currency Converter plugin.
-Choose the method that suits your preference and enjoy using the Currency Converter plugin in PowerToys!
 
 ## Conversion API
 

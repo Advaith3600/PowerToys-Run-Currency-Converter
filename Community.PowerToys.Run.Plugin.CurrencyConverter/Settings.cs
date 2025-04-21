@@ -13,8 +13,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         public int OutputStyle { get; set; } = 1;
         public int DecimalSeparator { get; set; } = 0;
         public int ConversionDirection { get; set; } = 0;
-        public string LocalCurrency { get; set; } = "";
-        public string[] Currencies { get; set; } = [];
+        public string LocalCurrency { get; set; } = new RegionInfo(CultureInfo.CurrentCulture.Name).ISOCurrencySymbol;
+        public string[] Currencies { get; set; } = ["USD"];
         public double ConversionCacheDuration { get; set; } = 3;
         public int ConversionAPI { get; set; } = (int)ConverterSettingsEnum.Default;
         public string ConversionAPIKey { get; set; } = "";
