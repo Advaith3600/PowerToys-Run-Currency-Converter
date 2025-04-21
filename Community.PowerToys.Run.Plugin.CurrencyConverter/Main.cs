@@ -252,7 +252,9 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private void UpdateIconPath(Theme theme)
         {
-            _iconPath = theme == Theme.Light || theme == Theme.HighContrastWhite ? _context?.CurrentPluginMetadata.IcoPathLight : _context?.CurrentPluginMetadata.IcoPathDark;
+            _iconPath = theme == Theme.Light || theme == Theme.HighContrastWhite ? 
+                "images\\icon-white.png": 
+                "images\\icon-black.png";
             _warningIconPath = "images\\warning.png";
 
             _converter.IconPath = _iconPath;

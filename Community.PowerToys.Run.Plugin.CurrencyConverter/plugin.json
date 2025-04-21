@@ -9,7 +9,7 @@
   "Website": "https://github.com/advaith3600/PowerToys-Run-Currency-Converter",
   "ExecuteFileName": "Community.PowerToys.Run.Plugin.CurrencyConverter.dll",
   "IsGlobal": false,
-  "IcoPathDark": "images\\icon-white.png",
-  "IcoPathLight": "images\\icon-black.png",
+  "IcoPathDark": "images\\icon-black-24x24.png",
+  "IcoPathLight": "images\\icon-white-24x24.png",
   "DynamicLoading":  true
 }
