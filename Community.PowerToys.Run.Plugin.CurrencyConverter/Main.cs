@@ -7,6 +7,7 @@ using Microsoft.PowerToys.Settings.UI.Library;
 using Wox.Plugin;
 using Wox.Plugin.Logger;
 using Wox.Infrastructure.Storage;
+using System.Windows.Documents;
 
 namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 {
@@ -133,15 +134,56 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 results.AddRange(_updater.GetResults());
             }
 
-            if (!(string.IsNullOrEmpty(query.ActionKeyword) || string.IsNullOrEmpty(query.Search.Trim())))
-                results.Add(new Result
+            if (!string.IsNullOrEmpty(query.ActionKeyword)) 
+            {
+                if (string.IsNullOrEmpty(query.Search.Trim())) 
                 {
-                    Title = "Loading...",
-                    SubTitle = "Please open an issue if needed.",
-                    IcoPath = _iconPath,
-                    ContextData = new Dictionary<string, string> { { "externalLink", GithubReadmeURL } },
-                    Action = _ => Helper.PerformAction("externalLink", GithubReadmeURL)
-                });
+                    results.AddRange([
+                        new Result()
+                        {
+                            Title = "Start typing to convert currencies",
+                            SubTitle = "Few examples are listed below",
+                            IcoPath = _iconPath,
+                            ContextData = new Dictionary<string, string> { { "externalLink", GithubReadmeURL } },
+                            Action = _ => Helper.PerformAction("externalLink", GithubReadmeURL)
+                        },
+                        new Result()
+                        {
+                            Title = "100 USD to INR",
+                            SubTitle = "Convert 100 US Dollars to Indian Rupees",
+                            IcoPath = _iconPath,
+                            ContextData = new Dictionary<string, string> { { "copy", "100 USD to INR" } },
+                            Action = _ => Helper.PerformAction("copy", "100 USD to INR")
+                        },
+                        new Result()
+                        {
+                            Title = "$100 to €",
+                            SubTitle = "Convert 100 US Dollars to Euros",
+                            IcoPath = _iconPath,
+                            ContextData = new Dictionary<string, string> { { "copy", "$100 to €" } },
+                            Action = _ => Helper.PerformAction("copy", "$100 to €")
+                        },
+                        new Result()
+                        {
+                            Title = "₽100",
+                            SubTitle = "Convert 100 Russian Rubles",
+                            IcoPath = _iconPath,
+                            ContextData = new Dictionary<string, string> { { "copy", "₽100" } },
+                            Action = _ => Helper.PerformAction("copy", "₽100")
+                        }
+                    ]);
+                } else
+                {
+                    results.Add(new Result
+                    {
+                        Title = "Loading...",
+                        SubTitle = "Please open an issue if needed.",
+                        IcoPath = _iconPath,
+                        ContextData = new Dictionary<string, string> { { "externalLink", GithubReadmeURL } },
+                        Action = _ => Helper.PerformAction("externalLink", GithubReadmeURL)
+                    });
+                }
+            }
 
             return results;
         }
