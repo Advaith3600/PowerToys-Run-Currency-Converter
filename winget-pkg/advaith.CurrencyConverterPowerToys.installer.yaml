@@ -3,15 +3,6 @@ PackageVersion: __VERSION__
 Platform:
 - Windows.Desktop
 InstallerType: nullsoft
-Scope: user
-InstallModes:
-- interactive
-- silent
-- silentWithProgress
-InstallerSwitches:
-  Silent: /S
-  SilentWithProgress: /S
-UpgradeBehavior: install
 Dependencies:
   PackageDependencies:
   - PackageIdentifier: Microsoft.PowerToys
@@ -23,4 +14,4 @@ Installers:
   InstallerUrl: __armURL__ 
   InstallerSha256: __armSHA256__
 ManifestType: installer
-ManifestVersion: 1.6.0
+ManifestVersion: 1.9.0
