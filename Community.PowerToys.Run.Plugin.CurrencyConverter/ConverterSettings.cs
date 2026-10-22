@@ -44,7 +44,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         private string ParseLink(string link, string from, string to) => link
             .Replace("{api_key}", _settings.ConversionAPIKey)
             .Replace("{date}", ConversionDate)
-            .Replace("{from}", _settings.ConversionAPI == (int)ConverterSettingsEnum.CurrencyAPI ? from.ToUpper() : from)
+            .Replace("{from}", _settings.ConversionAPI == (int)ConverterSettingsEnum.CurrencyAPI ? from.ToUpperInvariant() : from)
             .Replace("{to}", to);
         private Dictionary<string, string> GetOption() => _options[((ConverterSettingsEnum)_settings.ConversionAPI).ToString()];
 

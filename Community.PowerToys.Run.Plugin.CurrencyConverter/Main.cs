@@ -94,8 +94,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 ];
             }
 
-            string fromCurrency = match.Groups["from"].Value.Trim().ToLower();
-            string toCurrency = string.IsNullOrEmpty(match.Groups["to"].Value.Trim()) ? "" : match.Groups["to"].Value.Trim().ToLower();
+            string fromCurrency = match.Groups["from"].Value.Trim().ToLowerInvariant();
+            string toCurrency = string.IsNullOrEmpty(match.Groups["to"].Value.Trim()) ? "" : match.Groups["to"].Value.Trim().ToLowerInvariant();
 #if DEBUG
             Log.Info("from: " + fromCurrency + " and to: " + toCurrency, GetType());
 #endif

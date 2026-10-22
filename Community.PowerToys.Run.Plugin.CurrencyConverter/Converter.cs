@@ -136,8 +136,8 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 
         private Result? GetConversion(bool isGlobal, decimal amountToConvert, string fromCurrency, string toCurrency)
         {
-            fromCurrency = GetCurrencyFromAlias(fromCurrency.ToLower());
-            toCurrency = GetCurrencyFromAlias(toCurrency.ToLower());
+            fromCurrency = GetCurrencyFromAlias(fromCurrency.ToLowerInvariant());
+            toCurrency = GetCurrencyFromAlias(toCurrency.ToLowerInvariant());
 
             if (fromCurrency == toCurrency || string.IsNullOrEmpty(fromCurrency) || string.IsNullOrEmpty(toCurrency))
             {
@@ -156,13 +156,13 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 string fromFormatted = amountToConvert.ToString("N", CultureInfo.CurrentCulture);
                 string toFormatted = (amountToConvert < 0 ? convertedAmount * -1 : convertedAmount).ToString($"N{precision}", CultureInfo.CurrentCulture);
 
-                string compressedOutput = $"{toFormatted} {toCurrency.ToUpper()}";
-                string expandedOutput = $"{fromFormatted} {fromCurrency.ToUpper()} = {toFormatted} {toCurrency.ToUpper()}";
+                string compressedOutput = $"{toFormatted} {toCurrency.ToUpperInvariant()}";
+                string expandedOutput = $"{fromFormatted} {fromCurrency.ToUpperInvariant()} = {toFormatted} {toCurrency.ToUpperInvariant()}";
 
                 return new Result
                 {
                     Title = _settings.OutputStyle == 0 ? compressedOutput : expandedOutput,
-                    SubTitle = $"Currency conversion from {fromCurrency.ToUpper()} to {toCurrency.ToUpper()}",
+                    SubTitle = $"Currency conversion from {fromCurrency.ToUpperInvariant()} to {toCurrency.ToUpperInvariant()}",
                     QueryTextDisplay = compressedOutput,
                     IcoPath = IconPath,
                     ContextData = new Dictionary<string, string> { { "copy", toFormatted } },
@@ -207,7 +207,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             {
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
-                    throw new Exception($"{fromCurrency.ToUpper()} is not a valid currency");
+                    throw new Exception($"{fromCurrency.ToUpperInvariant()} is not a valid currency");
                 }
                 else
                 {
@@ -217,7 +217,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     if (!response.IsSuccessStatusCode)
                     {
                         throw response.StatusCode == System.Net.HttpStatusCode.NotFound
-                            ? new Exception($"{fromCurrency.ToUpper()} is not a valid currency")
+                            ? new Exception($"{fromCurrency.ToUpperInvariant()} is not a valid currency")
                             : new Exception("Something went wrong while fetching the conversion rate");
                     }
 
@@ -238,7 +238,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             }
             if (!_conversionCache.TryGetValue((fromCurrency, toCurrency), out var cacheOutput))
             {
-                throw new Exception($"{toCurrency.ToUpper()} is not a valid currency");
+                throw new Exception($"{toCurrency.ToUpperInvariant()} is not a valid currency");
             }
             conversionRate = cacheOutput.Rate;
 
