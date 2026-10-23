@@ -135,4 +135,8 @@ This plugin internally uses various APIs for the latest conversion rates:
    - Updates: The CurrencyAPI is updated frequently throughout the day. You can read more about it [here](https://currencyapi.com/pricing/).
    - Details: Please refer to the CurrencyAPI documentation for specific details on update frequency, pricing, and supported features.
 
+4. **[AllRatesToday](https://allratestoday.com)**
+   - API key required (free trial, paid plans). See [pricing](https://allratestoday.com/pricing/).
+   - Details: Please refer to the [AllRatesToday documentation](https://allratestoday.com/docs/) for update frequency and the [supported currencies](https://allratestoday.com/docs/supported-currencies/).
+
 **Please Note:** None of the APIs mentioned above are directly associated with this plugin. If you wish to use any other API for conversion rates or have suggestions for new APIs, please open a pull request (PR) to propose adding it to the plugin.

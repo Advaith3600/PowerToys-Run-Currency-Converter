@@ -201,7 +201,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
 #endif
 
             string url = _converterSettings.GetConversionLink(fromCurrency, toCurrency);
-            HttpResponseMessage response = _httpClient.GetAsync(url).Result;
+            HttpResponseMessage response = SendRequest(url);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -212,7 +212,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 else
                 {
                     string fallbackUrl = _converterSettings.GetConversionFallbackLink(fromCurrency, toCurrency);
-                    response = _httpClient.GetAsync(fallbackUrl).Result;
+                    response = SendRequest(fallbackUrl);
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -243,6 +243,15 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
             conversionRate = cacheOutput.Rate;
 
             return conversionRate;
+        }
+
+        private HttpResponseMessage SendRequest(string url)
+        {
+            using HttpRequestMessage request = new(HttpMethod.Get, url);
+            string? authorization = _converterSettings.GetAuthorizationHeader();
+            if (authorization != null)
+                request.Headers.TryAddWithoutValidation("Authorization", authorization);
+            return _httpClient.SendAsync(request).Result;
         }
 
         private string GetCurrencyFromAlias(string currency)

@@ -109,6 +109,7 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                             new("Default", ((int)ConverterSettingsEnum.Default).ToString()),
                             new("ExchangeRateAPI", ((int)ConverterSettingsEnum.ExchangeRateAPI).ToString()),
                             new("CurrencyAPI", ((int)ConverterSettingsEnum.CurrencyAPI).ToString()),
+                            new("AllRatesToday", ((int)ConverterSettingsEnum.AllRatesToday).ToString()),
                         ],
                     ComboBoxValue = ConversionAPI,
                 },

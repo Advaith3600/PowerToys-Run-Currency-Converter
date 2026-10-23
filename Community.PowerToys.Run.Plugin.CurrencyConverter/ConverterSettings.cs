@@ -38,19 +38,32 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                     {"ConversionFallbackLink", "https://api.currencyapi.com/v3/{date}?apikey={api_key}&base_currency={from}"},
                     {"ConversionHelperLink", "https://currencyapi.com/docs/currency-list"},
                 }
+            },
+            {
+                "AllRatesToday", new()
+                {
+                    {"ConversionLink", "https://allratestoday.com/api/v1/rates?source={from}"},
+                    {"ConversionFallbackLink", "https://allratestoday.com/api/v1/rates?source={from}"},
+                    {"ConversionHelperLink", "https://allratestoday.com/docs/supported-currencies/"},
+                }
             }
         };
 
         private string ParseLink(string link, string from, string to) => link
             .Replace("{api_key}", _settings.ConversionAPIKey)
             .Replace("{date}", ConversionDate)
-            .Replace("{from}", _settings.ConversionAPI == (int)ConverterSettingsEnum.CurrencyAPI ? from.ToUpper() : from)
+            .Replace("{from}", _settings.ConversionAPI == (int)ConverterSettingsEnum.CurrencyAPI || _settings.ConversionAPI == (int)ConverterSettingsEnum.AllRatesToday ? from.ToUpper() : from)
             .Replace("{to}", to);
         private Dictionary<string, string> GetOption() => _options[((ConverterSettingsEnum)_settings.ConversionAPI).ToString()];
 
         internal string GetConversionLink(string from, string to) => ParseLink(GetOption()["ConversionLink"], from, to);
         internal string GetConversionFallbackLink(string from, string to) => ParseLink(GetOption()["ConversionFallbackLink"], from, to);
         internal string GetHelperLink() => GetOption()["ConversionHelperLink"];
+
+        // AllRatesToday takes the API key as a Bearer token instead of in the URL
+        internal string? GetAuthorizationHeader() => _settings.ConversionAPI == (int)ConverterSettingsEnum.AllRatesToday
+            ? $"Bearer {_settings.ConversionAPIKey}"
+            : null;
 
         private void EnsureConversionAPIKey()
         {
@@ -73,6 +86,10 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
                 case (int)ConverterSettingsEnum.Default: return GetProperty(fromCurrency);
                 case (int)ConverterSettingsEnum.ExchangeRateAPI: return GetProperty("conversion_rates");
                 case (int)ConverterSettingsEnum.CurrencyAPI: return GetProperty("data");
+                case (int)ConverterSettingsEnum.AllRatesToday:
+                    // Response is an array of {"source", "target", "rate", "time"}; reshape it into {target: rate}
+                    return JsonSerializer.SerializeToElement(JsonDocument.Parse(content).RootElement.EnumerateArray()
+                        .ToDictionary(r => r.GetProperty("target").GetString()!, r => r.GetProperty("rate").GetDecimal()));
             }
 
             throw new Exception("Invalid Conversion API selected.");
@@ -104,5 +121,6 @@ namespace Community.PowerToys.Run.Plugin.CurrencyConverter
         Default,
         ExchangeRateAPI,
         CurrencyAPI,
+        AllRatesToday,
     }
 }
